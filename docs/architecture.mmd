@@ -1,0 +1,50 @@
+flowchart TB
+    %% ================= VIEW SHELL =================
+    subgraph ViewLayer["View / Imperative Shell (React)"]
+        direction LR
+        ConfigUI["Configuration & Controls\n• Define Programs (Arrival, Burst, I/O)\n• Policy Selection / Picker"]
+        VisualizerUI["Simulation Visualizer\n• Timeline Charts\n• State Metrics (Ready, Running, Blocked)"]
+    end
+
+    %% ================= PUBLIC CORE API =================
+    subgraph CoreAPI["Core Public API Boundary (api.ts)"]
+        direction TB
+        getPolicies["getAvailablePolicies()\nReturns policy catalog & metadata"]
+        runSim["runSimulations(programs, policies)\nExecutes pure simulation engine"]
+    end
+
+    %% ================= FUNCTIONAL CORE =================
+    subgraph CoreDomain["Functional Model Domain (core/)"]
+        direction TB
+        subgraph Algorithms["Scheduling Strategies"]
+            SchedPolicies["Pure Scheduler Functions\n(FCFS, Round Robin, SPN, Priority, etc.)"]
+        end
+
+        subgraph Engine["Simulation Engine"]
+            SimLoop["Discrete-Event Loop & State Reducers\n(Advances ticks, transitions process states)"]
+        end
+
+        subgraph DomainData["Domain Data Types"]
+            Types["Data Interfaces (Pure Types)\nProgram • Process • Policy • ProcessState"]
+        end
+    end
+
+    %% Interactions
+    ConfigUI -->|"1. Query policy catalog"| getPolicies
+    getPolicies -.->|"Available Policy metadata"| ConfigUI
+
+    ConfigUI -->|"2. Submit inputs (Programs, chosen Policies)"| runSim
+    runSim -->|"Coordinate"| SimLoop
+    SimLoop -->|"Invoke decision fn"| SchedPolicies
+    Engine -.->|"Operates on"| DomainData
+
+    runSim -->|"3. Return immutable results\n(State histories per policy)"| VisualizerUI
+
+    %% Styling
+    classDef shell fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
+    classDef api fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#92400e;
+    classDef core fill:#f3f4f6,stroke:#4b5563,stroke-width:2px,color:#1f2937;
+
+    class ViewLayer shell;
+    class CoreAPI api;
+    class CoreDomain core;
