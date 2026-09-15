@@ -1,7 +1,7 @@
 import type Process from "./process";
 
 export interface SchedulerDecision<TState> {
-  selectedIndex: number;
+  selectedProgramId: number;
   nextState: TState;
 }
 
