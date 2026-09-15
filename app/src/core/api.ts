@@ -44,38 +44,67 @@ function getReadyIndices(state: SimulationState): number[] {
 	}, []);
 }
 
-// Selects the next process, honoring non-preemptive execution when applicable.
-function selectProcessIndex(
-	policy: Policy,
+interface SelectionResult<TState> {
+	selectedIndex: number | undefined;
+	nextPolicyState: TState;
+}
+
+// Selects the next process, invoking the policy scheduler and enforcing non-preemptive execution.
+function selectProcessIndex<TState>(
+	policy: Policy<TState>,
 	state: SimulationState,
 	readyIndices: number[],
-): number | undefined {
-	if (
-		!policy.isPreemptive &&
-		state.runningIndex !== undefined &&
-		readyIndices.includes(state.runningIndex)
-	) {
-		return state.runningIndex;
-	}
-
+	policyState: TState,
+	tick: number,
+): SelectionResult<TState> {
 	if (readyIndices.length === 0) {
-		return undefined;
+		return {
+			selectedIndex: undefined,
+			nextPolicyState: policyState,
+		};
 	}
 
-	const selectedReadyIndex = policy.scheduler(
+	const canPreempt =
+		policy.isPreemptive ||
+		state.runningIndex === undefined ||
+		!readyIndices.includes(state.runningIndex);
+
+	const runningProcessId =
+		state.runningIndex !== undefined
+			? state.processes[state.runningIndex].process.program.id
+			: undefined;
+
+	const decision = policy.scheduler(
 		readyIndices.map((index) => state.processes[index].process),
+		policyState,
+		{
+			tick,
+			canPreempt,
+			runningProcessId,
+		},
 	);
-	if (
-		!Number.isInteger(selectedReadyIndex) ||
-		selectedReadyIndex < 0 ||
-		selectedReadyIndex >= readyIndices.length
-	) {
-		throw new RangeError(
-			`Policy ${policy.id} selected an invalid process index: ${selectedReadyIndex}`,
-		);
+
+	let selectedIndex: number;
+	if (!canPreempt) {
+		selectedIndex = state.runningIndex!;
+	} else {
+		const selectedReadyIndex = decision.selectedIndex;
+		if (
+			!Number.isInteger(selectedReadyIndex) ||
+			selectedReadyIndex < 0 ||
+			selectedReadyIndex >= readyIndices.length
+		) {
+			throw new RangeError(
+				`Policy ${policy.id} selected an invalid process index: ${selectedReadyIndex}`,
+			);
+		}
+		selectedIndex = readyIndices[selectedReadyIndex];
 	}
 
-	return readyIndices[selectedReadyIndex];
+	return {
+		selectedIndex,
+		nextPolicyState: decision.nextState,
+	};
 }
 
 // Advances one process by one tick and records its resulting state.
@@ -137,13 +166,19 @@ export function runSimulations(programs: Program[], policies: Policy[]): Record<
 	return Object.fromEntries(
 		policies.map((policy) => {
 			const state = createSimulationState(programs);
+			let policyState = policy.initialState();
+			let tick = 0;
 
 			while (!isSimulationComplete(state)) {
-				const selectedIndex = selectProcessIndex(
+				const { selectedIndex, nextPolicyState } = selectProcessIndex(
 					policy,
 					state,
 					getReadyIndices(state),
+					policyState,
+					tick,
 				);
+
+				policyState = nextPolicyState;
 
 				state.processes.forEach((processState, index) => {
 					advanceProcess(
@@ -153,6 +188,8 @@ export function runSimulations(programs: Program[], policies: Policy[]): Record<
 						state,
 					);
 				});
+
+				tick += 1;
 			}
 
 			return [policy.id, state.processes.map(({ process }) => process)];

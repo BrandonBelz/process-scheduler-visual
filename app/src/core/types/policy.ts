@@ -1,9 +1,25 @@
 import type Process from "./process";
 
-export default interface Policy {
+export interface SchedulerDecision<TState> {
+  selectedIndex: number;
+  nextState: TState;
+}
+
+export interface SchedulerContext {
+  tick: number;
+  canPreempt: boolean;
+  runningProcessId?: number;
+}
+
+export default interface Policy<TState = unknown> {
   id: number;
   name: string;
   description: string;
   isPreemptive: boolean;
-  scheduler: (processes: readonly Process[]) => number;
+  initialState: () => TState;
+  scheduler: (
+    processes: readonly Process[],
+    state: TState,
+    context: SchedulerContext,
+  ) => SchedulerDecision<TState>;
 }
