@@ -11,7 +11,7 @@ export interface SchedulerContext {
   runningProcessId?: number;
 }
 
-export default interface Policy<TState = unknown> {
+export default interface Policy<TState = any> {
   id: number;
   name: string;
   description: string;

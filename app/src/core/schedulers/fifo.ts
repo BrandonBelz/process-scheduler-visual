@@ -16,25 +16,30 @@ function fifo_scheduler(
     context: SchedulerContext
 ): SchedulerDecision<FifoState> {
     processes.forEach((process) => {
-        if (!state.queue.includes(process.program.id)) {
-            state.queue.push(process.program.id)
+        if (
+            process.program.id !== context.runningProcessId &&
+            !state.queue.includes(process.program.id)
+        ) {
+            state.queue.push(process.program.id);
         }
-    })
+    });
 
     if (context.runningProcessId) {
         return {
             selectedProgramId: context.runningProcessId,
-            nextState: state
-        }
+            nextState: state,
+        };
     }
+
+    const nextProgramId = state.queue.shift() ?? processes[0].program.id;
 
     return {
-        selectedProgramId: state.queue.shift(),
-        nextState: state
-    }
+        selectedProgramId: nextProgramId,
+        nextState: state,
+    };
 }
 
-const FIFO_POLICY: Policy = {
+const FIFO_POLICY: Policy<FifoState> = {
     id: 1,
     name: "FIFO",
     description: "First In, First Out (FIFO) is the most basic algorithm. It runs processes to completion in the order that they arrive.",
