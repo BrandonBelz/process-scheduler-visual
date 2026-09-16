@@ -1,7 +1,7 @@
 import type Process from "./process";
 
 export interface SchedulerDecision<TState> {
-  selectedIndex: number;
+  selectedProgramId: number;
   nextState: TState;
 }
 
@@ -11,7 +11,7 @@ export interface SchedulerContext {
   runningProcessId?: number;
 }
 
-export default interface Policy<TState = unknown> {
+export default interface Policy<TState = any> {
   id: number;
   name: string;
   description: string;

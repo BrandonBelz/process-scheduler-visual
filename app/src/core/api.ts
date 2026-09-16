@@ -2,6 +2,7 @@ import type Policy from './types/policy';
 import type Program from './types/program';
 import type Process from './types/process';
 import { ProcessState } from './types/processState';
+import FIFO_POLICY from './schedulers/fifo';
 
 interface ProcessSimulationState {
 	process: Process;
@@ -88,17 +89,16 @@ function selectProcessIndex<TState>(
 	if (!canPreempt) {
 		selectedIndex = state.runningIndex!;
 	} else {
-		const selectedReadyIndex = decision.selectedIndex;
-		if (
-			!Number.isInteger(selectedReadyIndex) ||
-			selectedReadyIndex < 0 ||
-			selectedReadyIndex >= readyIndices.length
-		) {
+		const targetProgramId = decision.selectedProgramId;
+		const readyMatchIndex = readyIndices.find(
+			(index) => state.processes[index].process.program.id === targetProgramId,
+		);
+		if (readyMatchIndex === undefined) {
 			throw new RangeError(
-				`Policy ${policy.id} selected an invalid process index: ${selectedReadyIndex}`,
+				`Policy ${policy.id} selected an invalid or unready program ID: ${targetProgramId}`,
 			);
 		}
-		selectedIndex = readyIndices[selectedReadyIndex];
+		selectedIndex = readyMatchIndex;
 	}
 
 	return {
@@ -195,4 +195,10 @@ export function runSimulations(programs: Program[], policies: Policy[]): Record<
 			return [policy.id, state.processes.map(({ process }) => process)];
 		}),
 	);
+}
+
+export function getPolicies(): Policy[] {
+	return [
+		FIFO_POLICY
+	]
 }
