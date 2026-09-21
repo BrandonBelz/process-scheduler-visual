@@ -4,7 +4,7 @@ import type Program from './types/program';
 import type Process from './types/process';
 import { ProcessState } from './types/processState';
 import type { StandardProcessDto, FutureTellingProcessDto } from './types/processDto';
-import FIFO_POLICY from './schedulers/fifo';
+import fifoPolicyFactory from './schedulers/fifo';
 interface ProcessSimulationState {
 	process: Process;
 	remainingExecution: number;
@@ -237,6 +237,6 @@ export function runSimulations(programs: Program[], policies: Policy[]): Record<
 
 export function getPolicies(): Policy[] {
 	return [
-		FIFO_POLICY
+		fifoPolicyFactory(1)
 	]
 }

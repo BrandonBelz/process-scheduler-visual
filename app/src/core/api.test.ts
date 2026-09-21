@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runSimulations } from './api';
-import FIFO_POLICY from './schedulers/fifo';
+import fifoPolicyFactory from './schedulers/fifo';
 import { ProcessState } from './types/processState';
 import type Program from './types/program';
 import type Process from './types/process';
@@ -54,8 +54,9 @@ describe('runSimulations', () => {
             },
         ];
 
-        const results = runSimulations(programs, [FIFO_POLICY]);
-        const policyResults = results[FIFO_POLICY.id];
+        const fifoPolicy = fifoPolicyFactory(1);
+        const results = runSimulations(programs, [fifoPolicy]);
+        const policyResults = results[fifoPolicy.id];
 
         expect(policyResults).toBeDefined();
         expect(policyResults).toHaveLength(1);
@@ -77,8 +78,9 @@ describe('runSimulations', () => {
             { id: 2, executionTime: 3 },
         ];
 
-        const results = runSimulations(programs, [FIFO_POLICY]);
-        const policyResults = results[FIFO_POLICY.id];
+        const fifoPolicy = fifoPolicyFactory(1);
+        const results = runSimulations(programs, [fifoPolicy]);
+        const policyResults = results[fifoPolicy.id];
 
         logSimulationTimeline('Multi-Process Execution (FIFO)', policyResults);
 
@@ -119,8 +121,9 @@ describe('runSimulations', () => {
             },
         ];
 
-        const results = runSimulations(programs, [FIFO_POLICY]);
-        const policyResults = results[FIFO_POLICY.id];
+        const fifoPolicy = fifoPolicyFactory(1);
+        const results = runSimulations(programs, [fifoPolicy]);
+        const policyResults = results[fifoPolicy.id];
 
         logSimulationTimeline('I/O Blocking and CPU Yielding', policyResults);
 
@@ -155,8 +158,9 @@ describe('runSimulations', () => {
             },
         ];
 
-        const results = runSimulations(programs, [FIFO_POLICY]);
-        const policyResults = results[FIFO_POLICY.id];
+        const fifoPolicy = fifoPolicyFactory(1);
+        const results = runSimulations(programs, [fifoPolicy]);
+        const policyResults = results[fifoPolicy.id];
 
         logSimulationTimeline('Idle CPU During I/O Block', policyResults);
 
@@ -169,13 +173,28 @@ describe('runSimulations', () => {
     });
 
     it('should gracefully handle empty program list', () => {
-        const results = runSimulations([], [FIFO_POLICY]);
-        const policyResults = results[FIFO_POLICY.id];
+        const fifoPolicy = fifoPolicyFactory(1);
+        const results = runSimulations([], [fifoPolicy]);
+        const policyResults = results[fifoPolicy.id];
 
         logSimulationTimeline('Empty Programs List', policyResults);
 
         expect(policyResults).toBeDefined();
         expect(policyResults).toEqual([]);
+    });
+
+    it('should create a FIFO policy with the specified id and expected properties', () => {
+        const fifoPolicy = fifoPolicyFactory(42);
+        expect(fifoPolicy.id).toBe(42);
+        expect(fifoPolicy.name).toBe('FIFO');
+        expect(fifoPolicy.isPreemptive).toBe(false);
+        expect(fifoPolicy.canTellTheFuture).toBe(false);
+        expect(fifoPolicy.initialState()).toEqual({ queue: [] });
+
+        const programs: Program[] = [{ id: 1, executionTime: 1 }];
+        const results = runSimulations(programs, [fifoPolicy]);
+        expect(results[42]).toBeDefined();
+        expect(results[42]).toHaveLength(1);
     });
 
     it('should supply StandardProcessDto with programId and currentState to policies where canTellTheFuture is false', () => {
