@@ -4,6 +4,8 @@ import FIFO_POLICY from './schedulers/fifo';
 import { ProcessState } from './types/processState';
 import type Program from './types/program';
 import type Process from './types/process';
+import type Policy from './types/policy';
+import type { StandardProcessDto, FutureTellingProcessDto } from './types/processDto';
 
 /**
  * Pretty-prints simulation results as a readable ASCII timeline grid.
@@ -175,4 +177,161 @@ describe('runSimulations', () => {
         expect(policyResults).toBeDefined();
         expect(policyResults).toEqual([]);
     });
+
+    it('should supply StandardProcessDto with programId and currentState to policies where canTellTheFuture is false', () => {
+        const receivedSnapshots: StandardProcessDto[][] = [];
+
+        const testStandardPolicy: Policy<void> = {
+            id: 99,
+            name: 'TestStandard',
+            description: 'Inspects StandardProcessDto snapshots',
+            isPreemptive: false,
+            canTellTheFuture: false,
+            initialState: () => undefined,
+            scheduler: (processes, state) => {
+                receivedSnapshots.push([...processes]);
+                return {
+                    selectedProgramId: processes[0].programId,
+                    nextState: state,
+                };
+            },
+        };
+
+        const programs: Program[] = [
+            { id: 10, executionTime: 1 },
+            { id: 20, executionTime: 1 },
+        ];
+
+        runSimulations(programs, [testStandardPolicy]);
+
+        expect(receivedSnapshots.length).toBeGreaterThan(0);
+        const firstTickProcesses = receivedSnapshots[0];
+        expect(firstTickProcesses).toHaveLength(2);
+
+        expect(firstTickProcesses[0].programId).toBe(10);
+        expect(firstTickProcesses[0].currentState).toBe(ProcessState.READY);
+        expect((firstTickProcesses[0] as unknown as Record<string, unknown>).remainingExecutionTime).toBeUndefined();
+        expect((firstTickProcesses[0] as unknown as Record<string, unknown>).remainingBurstTime).toBeUndefined();
+
+        expect(firstTickProcesses[1].programId).toBe(20);
+        expect(firstTickProcesses[1].currentState).toBe(ProcessState.READY);
+    });
+
+    it('should supply FutureTellingProcessDto with accurate remainingExecutionTime and remainingBurstTime to future-telling policies', () => {
+        const recordedTicks: { tick: number; processes: FutureTellingProcessDto[] }[] = [];
+
+        const testFuturePolicy: Policy<void> = {
+            id: 100,
+            name: 'TestFuture',
+            description: 'Inspects FutureTellingProcessDto snapshots',
+            isPreemptive: false,
+            canTellTheFuture: true,
+            initialState: () => undefined,
+            scheduler: (processes, state, context) => {
+                recordedTicks.push({
+                    tick: context.tick,
+                    processes: processes.map((p) => ({ ...p })),
+                });
+                return {
+                    selectedProgramId: processes[0].programId,
+                    nextState: state,
+                };
+            },
+        };
+
+        const programs: Program[] = [
+            { id: 1, executionTime: 3, ioSetting: { interval: 1, length: 2 } },
+            { id: 2, executionTime: 2 },
+        ];
+
+        runSimulations(programs, [testFuturePolicy]);
+
+        // At tick 0:
+        // P1: remainingExecution 3, burst 1 (min(3, 1 - 0) = 1)
+        // P2: remainingExecution 2, burst 2
+        const tick0 = recordedTicks.find((r) => r.tick === 0);
+        expect(tick0).toBeDefined();
+        const p1Tick0 = tick0!.processes.find((p) => p.programId === 1);
+        const p2Tick0 = tick0!.processes.find((p) => p.programId === 2);
+        expect(p1Tick0).toEqual({
+            programId: 1,
+            currentState: ProcessState.READY,
+            remainingExecutionTime: 3,
+            remainingBurstTime: 1,
+        });
+        expect(p2Tick0).toEqual({
+            programId: 2,
+            currentState: ProcessState.READY,
+            remainingExecutionTime: 2,
+            remainingBurstTime: 2,
+        });
+
+        // At tick 1: P1 blocked on I/O, P2 ready
+        // P2: remainingExecution 2, burst 2
+        const tick1 = recordedTicks.find((r) => r.tick === 1);
+        expect(tick1).toBeDefined();
+        expect(tick1!.processes).toHaveLength(1);
+        expect(tick1!.processes[0]).toEqual({
+            programId: 2,
+            currentState: ProcessState.READY,
+            remainingExecutionTime: 2,
+            remainingBurstTime: 2,
+        });
+
+        // At tick 2: P1 still blocked, P2 ran 1 cycle, so P2 remainingExecution 1, burst 1
+        const tick2 = recordedTicks.find((r) => r.tick === 2);
+        expect(tick2).toBeDefined();
+        expect(tick2!.processes).toHaveLength(1);
+        expect(tick2!.processes[0]).toEqual({
+            programId: 2,
+            currentState: ProcessState.READY,
+            remainingExecutionTime: 1,
+            remainingBurstTime: 1,
+        });
+
+        // At tick 3: P1 unblocks! P2 completed.
+        // P1: remainingExecution 2, cpuTicksSinceIo is 0, burst is min(2, 1 - 0) = 1
+        const tick3 = recordedTicks.find((r) => r.tick === 3);
+        expect(tick3).toBeDefined();
+        expect(tick3!.processes).toHaveLength(1);
+        expect(tick3!.processes[0]).toEqual({
+            programId: 1,
+            currentState: ProcessState.READY,
+            remainingExecutionTime: 2,
+            remainingBurstTime: 1,
+        });
+    });
+
+    it('should calculate remainingBurstTime as remainingExecutionTime when program completes before next I/O interval', () => {
+        let recordedSnapshot: FutureTellingProcessDto | undefined;
+
+        const testFuturePolicy: Policy<void> = {
+            id: 101,
+            name: 'TestFuturePrecedence',
+            description: 'Checks burst calculation when executionTime < interval',
+            isPreemptive: false,
+            canTellTheFuture: true,
+            initialState: () => undefined,
+            scheduler: (processes, state) => {
+                if (!recordedSnapshot) {
+                    recordedSnapshot = processes[0];
+                }
+                return {
+                    selectedProgramId: processes[0].programId,
+                    nextState: state,
+                };
+            },
+        };
+
+        const programs: Program[] = [
+            { id: 1, executionTime: 2, ioSetting: { interval: 5, length: 1 } },
+        ];
+
+        runSimulations(programs, [testFuturePolicy]);
+
+        expect(recordedSnapshot).toBeDefined();
+        expect(recordedSnapshot!.remainingExecutionTime).toBe(2);
+        expect(recordedSnapshot!.remainingBurstTime).toBe(2);
+    });
 });
+

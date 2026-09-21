@@ -1,9 +1,10 @@
 import type Policy from './types/policy';
+import type { SchedulerContext } from './types/policy';
 import type Program from './types/program';
 import type Process from './types/process';
 import { ProcessState } from './types/processState';
+import type { StandardProcessDto, FutureTellingProcessDto } from './types/processDto';
 import FIFO_POLICY from './schedulers/fifo';
-
 interface ProcessSimulationState {
 	process: Process;
 	remainingExecution: number;
@@ -16,6 +17,35 @@ interface ProcessSimulationState {
 interface SimulationState {
 	processes: ProcessSimulationState[];
 	runningIndex?: number;
+}
+
+function createStandardProcessDto(
+	processState: ProcessSimulationState,
+): StandardProcessDto {
+	return {
+		programId: processState.process.program.id,
+		currentState: ProcessState.READY,
+	};
+}
+
+function createFutureTellingProcessDto(
+	processState: ProcessSimulationState,
+): FutureTellingProcessDto {
+	const ioSetting = processState.process.program.ioSetting;
+	const remainingBurstTime =
+		ioSetting !== undefined && ioSetting.interval > 0
+			? Math.min(
+				processState.remainingExecution,
+				ioSetting.interval - processState.cpuTicksSinceIo,
+			)
+			: processState.remainingExecution;
+
+	return {
+		programId: processState.process.program.id,
+		currentState: ProcessState.READY,
+		remainingExecutionTime: processState.remainingExecution,
+		remainingBurstTime,
+	};
 }
 
 // Creates the mutable runtime state used to simulate one policy.
@@ -75,15 +105,23 @@ function selectProcessIndex<TState>(
 			? state.processes[state.runningIndex].process.program.id
 			: undefined;
 
-	const decision = policy.scheduler(
-		readyIndices.map((index) => state.processes[index].process),
-		policyState,
-		{
-			tick,
-			canPreempt,
-			runningProcessId,
-		},
-	);
+	const context: SchedulerContext = {
+		tick,
+		canPreempt,
+		runningProcessId,
+	};
+
+	const decision = policy.canTellTheFuture
+		? policy.scheduler(
+			readyIndices.map((index) => createFutureTellingProcessDto(state.processes[index])),
+			policyState,
+			context,
+		)
+		: policy.scheduler(
+			readyIndices.map((index) => createStandardProcessDto(state.processes[index])),
+			policyState,
+			context,
+		);
 
 	let selectedIndex: number;
 	if (!canPreempt) {
