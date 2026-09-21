@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { StandardProcessDto, FutureTellingProcessDto } from "./processDto";
 
 export interface SchedulerDecision<TState> {
@@ -11,7 +12,7 @@ export interface SchedulerContext {
   runningProcessId?: number;
 }
 
-interface BasePolicy<TState> {
+interface BasePolicy<TState = any> {
   id: number;
   name: string;
   description: string;
@@ -19,7 +20,7 @@ interface BasePolicy<TState> {
   initialState: () => TState;
 }
 
-export interface StandardPolicy<TState = unknown> extends BasePolicy<TState> {
+export interface StandardPolicy<TState = any> extends BasePolicy<TState> {
   canTellTheFuture: false;
   scheduler: (
     processes: readonly StandardProcessDto[],
@@ -28,9 +29,7 @@ export interface StandardPolicy<TState = unknown> extends BasePolicy<TState> {
   ) => SchedulerDecision<TState>;
 }
 
-export interface FutureTellingPolicy<
-  TState = unknown,
-> extends BasePolicy<TState> {
+export interface FutureTellingPolicy<TState = any> extends BasePolicy<TState> {
   canTellTheFuture: true;
   scheduler: (
     processes: readonly FutureTellingProcessDto[],
@@ -39,6 +38,6 @@ export interface FutureTellingPolicy<
   ) => SchedulerDecision<TState>;
 }
 
-export type Policy<TState = unknown> =
+export type Policy<TState = any> =
   StandardPolicy<TState> | FutureTellingPolicy<TState>;
 export type { Policy as default };
