@@ -22,6 +22,8 @@ Users must be able to:
 - Required: included in the December baseline unless explicitly marked as stretch or design direction, or assigned a later delivery date such as the final ownership handoff.
 - Stretch: optional work only if time permits before January; not required for acceptance.
 - Design direction: implementation flexibility within the agreed behavior.
+- Confirmed: agreed behavior or constraint; confirmed functional requirements are part of the December baseline unless marked otherwise.
+- TBD: a detail that still requires a delivery decision.
 - Delivery decision: information to record during implementation or deployment, not an additional discovery question.
 - Functional requirements describe behavior; non-functional requirements describe measurable quality targets.
 - Acceptance criteria describe how to verify the requirements; they do not claim that an implementation has been tested.
