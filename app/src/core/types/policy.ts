@@ -1,4 +1,4 @@
-import type Process from "./process";
+import type { StandardProcessDto, FutureTellingProcessDto } from "./processDto";
 
 export interface SchedulerDecision<TState> {
   selectedProgramId: number;
@@ -11,15 +11,32 @@ export interface SchedulerContext {
   runningProcessId?: number;
 }
 
-export default interface Policy<TState = any> {
+interface BasePolicy<TState> {
   id: number;
   name: string;
   description: string;
   isPreemptive: boolean;
   initialState: () => TState;
+}
+
+export interface StandardPolicy<TState = unknown> extends BasePolicy<TState> {
+  canTellTheFuture: false;
   scheduler: (
-    processes: readonly Process[],
+    processes: readonly StandardProcessDto[],
     state: TState,
     context: SchedulerContext,
   ) => SchedulerDecision<TState>;
 }
+
+export interface FutureTellingPolicy<TState = unknown> extends BasePolicy<TState> {
+  canTellTheFuture: true;
+  scheduler: (
+    processes: readonly FutureTellingProcessDto[],
+    state: TState,
+    context: SchedulerContext,
+  ) => SchedulerDecision<TState>;
+}
+
+export type Policy<TState = unknown> = StandardPolicy<TState> | FutureTellingPolicy<TState>;
+export type { Policy as default };
+

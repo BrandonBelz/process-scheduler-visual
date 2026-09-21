@@ -1,6 +1,6 @@
 import type Policy from "../types/policy";
 import type { SchedulerContext, SchedulerDecision } from "../types/policy";
-import type Process from "../types/process";
+import type { StandardProcessDto } from "../types/processDto";
 
 interface FifoState {
     queue: number[];
@@ -11,16 +11,16 @@ function initialFifoState(): FifoState {
 }
 
 function fifo_scheduler(
-    processes: readonly Process[],
+    processes: readonly StandardProcessDto[],
     state: FifoState,
     context: SchedulerContext
 ): SchedulerDecision<FifoState> {
     processes.forEach((process) => {
         if (
-            process.program.id !== context.runningProcessId &&
-            !state.queue.includes(process.program.id)
+            process.programId !== context.runningProcessId &&
+            !state.queue.includes(process.programId)
         ) {
-            state.queue.push(process.program.id);
+            state.queue.push(process.programId);
         }
     });
 
@@ -31,7 +31,7 @@ function fifo_scheduler(
         };
     }
 
-    const nextProgramId = state.queue.shift() ?? processes[0].program.id;
+    const nextProgramId = state.queue.shift() ?? processes[0].programId;
 
     return {
         selectedProgramId: nextProgramId,
@@ -44,6 +44,7 @@ const FIFO_POLICY: Policy<FifoState> = {
     name: "FIFO",
     description: "First In, First Out (FIFO) is the most basic algorithm. It runs processes to completion in the order that they arrive.",
     isPreemptive: false,
+    canTellTheFuture: false,
     initialState: initialFifoState,
     scheduler: fifo_scheduler
 }
