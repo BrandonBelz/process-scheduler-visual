@@ -2,7 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -23,8 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26.8.x
-          cache: 'npm'
-          cache-dependency-path: './app/package-lock.json'
+          cache: "npm"
+          cache-dependency-path: "./app/package-lock.json"
 
       - run: npm ci
       - run: npm run typecheck
@@ -51,8 +53,8 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      pages: write      # deploy to Pages
-      id-token: write   # verify the deploy originates from this workflow
+      pages: write # deploy to Pages
+      id-token: write # verify the deploy originates from this workflow
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
