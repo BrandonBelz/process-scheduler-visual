@@ -39,14 +39,14 @@ function fifo_scheduler(
     };
 }
 
-const FIFO_POLICY: Policy<FifoState> = {
-    id: 1,
-    name: "FIFO",
-    description: "First In, First Out (FIFO) is the most basic algorithm. It runs processes to completion in the order that they arrive.",
-    isPreemptive: false,
-    canTellTheFuture: false,
-    initialState: initialFifoState,
-    scheduler: fifo_scheduler
+export default function fifoPolicyFactory(id: number): Policy<FifoState> {
+    return {
+        id,
+        name: "FIFO",
+        description: "First In, First Out (FIFO) is the most basic algorithm. It runs processes to completion in the order that they arrive.",
+        isPreemptive: false,
+        canTellTheFuture: false,
+        initialState: initialFifoState,
+        scheduler: fifo_scheduler
+    }
 }
-
-export default FIFO_POLICY;
