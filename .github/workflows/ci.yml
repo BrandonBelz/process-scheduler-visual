@@ -12,7 +12,8 @@ jobs:
     name: Lint, type-check, format, test
     runs-on: ubuntu-latest
     defaults:
-      working-directory: ./app
+      run:
+        working-directory: ./app
     concurrency:
       group: ci-${{ github.head_ref }}
       cancel-in-progress: true
@@ -23,7 +24,7 @@ jobs:
         with:
           node-version: 26.8.x
           cache: 'npm'
-          cache-dependency-path: './package-lock.json'
+          cache-dependency-path: './app/package-lock.json'
 
       - run: npm ci
       - run: npm run typecheck
