@@ -24,7 +24,7 @@ function fifo_scheduler(
     }
   });
 
-  if (context.runningProcessId) {
+  if (context.runningProcessId !== undefined) {
     return {
       selectedProgramId: context.runningProcessId,
       nextState: state,
