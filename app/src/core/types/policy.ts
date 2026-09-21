@@ -28,7 +28,9 @@ export interface StandardPolicy<TState = unknown> extends BasePolicy<TState> {
   ) => SchedulerDecision<TState>;
 }
 
-export interface FutureTellingPolicy<TState = unknown> extends BasePolicy<TState> {
+export interface FutureTellingPolicy<
+  TState = unknown,
+> extends BasePolicy<TState> {
   canTellTheFuture: true;
   scheduler: (
     processes: readonly FutureTellingProcessDto[],
@@ -37,6 +39,6 @@ export interface FutureTellingPolicy<TState = unknown> extends BasePolicy<TState
   ) => SchedulerDecision<TState>;
 }
 
-export type Policy<TState = unknown> = StandardPolicy<TState> | FutureTellingPolicy<TState>;
+export type Policy<TState = unknown> =
+  StandardPolicy<TState> | FutureTellingPolicy<TState>;
 export type { Policy as default };
-
