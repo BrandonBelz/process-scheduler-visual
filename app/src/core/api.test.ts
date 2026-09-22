@@ -509,7 +509,10 @@ describe("integration with SJF", () => {
 
     const sjfPolicy = sjfPolicyFactory(2);
     const results = runSimulations(programs, [sjfPolicy]);
-    logSimulationTimeline("CPU-Only Shortest Job First (SJF)", results[sjfPolicy.id]);
+    logSimulationTimeline(
+      "CPU-Only Shortest Job First (SJF)",
+      results[sjfPolicy.id],
+    );
     const [p1, p2] = results[sjfPolicy.id];
 
     expect(p2.stateHistory.slice(0, 3)).toEqual([
@@ -545,7 +548,10 @@ describe("integration with SJF", () => {
 
     const sjfPolicy = sjfPolicyFactory(3);
     const results = runSimulations(programs, [sjfPolicy]);
-    logSimulationTimeline("I/O-Aware Shortest Job First (SJF)", results[sjfPolicy.id]);
+    logSimulationTimeline(
+      "I/O-Aware Shortest Job First (SJF)",
+      results[sjfPolicy.id],
+    );
     const [p1, p2] = results[sjfPolicy.id];
 
     expect(p1.stateHistory[0]).toBe(ProcessState.RUNNING);
