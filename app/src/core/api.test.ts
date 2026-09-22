@@ -239,11 +239,6 @@ describe("runSimulations", () => {
     const results = runSimulations(programs, [fifoPolicy]);
     const policyResults = results[fifoPolicy.id];
 
-    logSimulationTimeline(
-      "Staggered Arrival Times with NOT_STARTED and Idle Periods",
-      policyResults,
-    );
-
     expect(policyResults).toHaveLength(3);
     const [p1, p2, p3] = policyResults;
 
@@ -499,6 +494,7 @@ describe("integration with FIFO", () => {
 
     const programs: Program[] = [{ id: 1, executionTime: 1, arrivalTime: 0 }];
     const results = runSimulations(programs, [fifoPolicy]);
+    logSimulationTimeline("FIFO Policy Factory Integration", results[42]);
     expect(results[42]).toBeDefined();
     expect(results[42]).toHaveLength(1);
   });
@@ -513,6 +509,7 @@ describe("integration with SJF", () => {
 
     const sjfPolicy = sjfPolicyFactory(2);
     const results = runSimulations(programs, [sjfPolicy]);
+    logSimulationTimeline("CPU-Only Shortest Job First (SJF)", results[sjfPolicy.id]);
     const [p1, p2] = results[sjfPolicy.id];
 
     expect(p2.stateHistory.slice(0, 3)).toEqual([
@@ -548,6 +545,7 @@ describe("integration with SJF", () => {
 
     const sjfPolicy = sjfPolicyFactory(3);
     const results = runSimulations(programs, [sjfPolicy]);
+    logSimulationTimeline("I/O-Aware Shortest Job First (SJF)", results[sjfPolicy.id]);
     const [p1, p2] = results[sjfPolicy.id];
 
     expect(p1.stateHistory[0]).toBe(ProcessState.RUNNING);
