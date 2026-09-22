@@ -12,8 +12,9 @@
     "format": "prettier --write .",
     "format-check": "prettier --check .",
     "preview": "vite preview",
-    "test": "vitest --coverage",
-    "test-ui": "vitest --coverage --ui"
+    "test": "vitest run --coverage",
+    "test-ui": "vitest --coverage --ui",
+    "verify": "npm run typecheck && npm run lint && npm run format && npm run test"
   },
   "dependencies": {
     "react": "^19.2.8",
