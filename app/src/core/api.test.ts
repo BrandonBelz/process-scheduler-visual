@@ -57,6 +57,7 @@ describe("runSimulations", () => {
       {
         id: 1,
         executionTime: 3,
+        arrivalTime: 0,
       },
     ];
 
@@ -82,8 +83,8 @@ describe("runSimulations", () => {
 
   it("should maintain mutual exclusion and synchronous history lengths across multiple processes", () => {
     const programs: Program[] = [
-      { id: 1, executionTime: 2 },
-      { id: 2, executionTime: 3 },
+      { id: 1, executionTime: 2, arrivalTime: 0 },
+      { id: 2, executionTime: 3, arrivalTime: 0 },
     ];
 
     const fifoPolicy = fifoPolicyFactory(1);
@@ -128,10 +129,12 @@ describe("runSimulations", () => {
         id: 1,
         executionTime: 3,
         ioSetting: { interval: 1, length: 2 },
+        arrivalTime: 0,
       },
       {
         id: 2,
         executionTime: 2,
+        arrivalTime: 0,
       },
     ];
 
@@ -175,6 +178,7 @@ describe("runSimulations", () => {
         id: 1,
         executionTime: 2,
         ioSetting: { interval: 1, length: 2 },
+        arrivalTime: 0,
       },
     ];
 
@@ -215,7 +219,7 @@ describe("runSimulations", () => {
     expect(fifoPolicy.canTellTheFuture).toBe(false);
     expect(fifoPolicy.initialState()).toEqual({ queue: [] });
 
-    const programs: Program[] = [{ id: 1, executionTime: 1 }];
+    const programs: Program[] = [{ id: 1, executionTime: 1, arrivalTime: 0 }];
     const results = runSimulations(programs, [fifoPolicy]);
     expect(results[42]).toBeDefined();
     expect(results[42]).toHaveLength(1);
@@ -241,8 +245,8 @@ describe("runSimulations", () => {
     };
 
     const programs: Program[] = [
-      { id: 10, executionTime: 1 },
-      { id: 20, executionTime: 1 },
+      { id: 10, executionTime: 1, arrivalTime: 0 },
+      { id: 20, executionTime: 1, arrivalTime: 0 },
     ];
 
     runSimulations(programs, [testStandardPolicy]);
@@ -292,8 +296,13 @@ describe("runSimulations", () => {
     };
 
     const programs: Program[] = [
-      { id: 1, executionTime: 3, ioSetting: { interval: 1, length: 2 } },
-      { id: 2, executionTime: 2 },
+      {
+        id: 1,
+        executionTime: 3,
+        ioSetting: { interval: 1, length: 2 },
+        arrivalTime: 0,
+      },
+      { id: 2, executionTime: 2, arrivalTime: 0 },
     ];
 
     runSimulations(programs, [testFuturePolicy]);
@@ -376,7 +385,12 @@ describe("runSimulations", () => {
     };
 
     const programs: Program[] = [
-      { id: 1, executionTime: 2, ioSetting: { interval: 5, length: 1 } },
+      {
+        id: 1,
+        executionTime: 2,
+        ioSetting: { interval: 5, length: 1 },
+        arrivalTime: 0,
+      },
     ];
 
     runSimulations(programs, [testFuturePolicy]);
@@ -384,5 +398,105 @@ describe("runSimulations", () => {
     expect(recordedSnapshot).toBeDefined();
     expect(recordedSnapshot!.remainingExecutionTime).toBe(2);
     expect(recordedSnapshot!.remainingBurstTime).toBe(2);
+  });
+
+  it("should respect arrivalTime by keeping unarrived processes in NOT_STARTED until their arrival tick", () => {
+    const programs: Program[] = [
+      { id: 1, executionTime: 2, arrivalTime: 0 },
+      { id: 2, executionTime: 2, arrivalTime: 1 },
+      { id: 3, executionTime: 1, arrivalTime: 5 },
+    ];
+
+    const fifoPolicy = fifoPolicyFactory(1);
+    const results = runSimulations(programs, [fifoPolicy]);
+    const policyResults = results[fifoPolicy.id];
+
+    logSimulationTimeline(
+      "Staggered Arrival Times with NOT_STARTED and Idle Periods",
+      policyResults,
+    );
+
+    expect(policyResults).toHaveLength(3);
+    const [p1, p2, p3] = policyResults;
+
+    // Contract: Synchronous clock — all processes have identical history lengths
+    expect(p1.stateHistory.length).toBe(p2.stateHistory.length);
+    expect(p2.stateHistory.length).toBe(p3.stateHistory.length);
+
+    // Contract: Processes are in NOT_STARTED before their arrivalTime
+    // P1 arrived at tick 0: never NOT_STARTED
+    expect(
+      p1.stateHistory.filter((s) => s === ProcessState.NOT_STARTED),
+    ).toHaveLength(0);
+
+    // P2 arrived at tick 1: NOT_STARTED at tick 0
+    expect(p2.stateHistory[0]).toBe(ProcessState.NOT_STARTED);
+    // P2 arrives at tick 1 while P1 is RUNNING, so P2 becomes READY
+    expect(p2.stateHistory[1]).toBe(ProcessState.READY);
+
+    // P3 arrived at tick 5: NOT_STARTED for ticks 0, 1, 2, 3, 4
+    for (let tick = 0; tick < 5; tick++) {
+      expect(p3.stateHistory[tick]).toBe(ProcessState.NOT_STARTED);
+    }
+    // P3 arrives at tick 5 when CPU is idle, so it immediately runs
+    expect(p3.stateHistory[5]).toBe(ProcessState.RUNNING);
+
+    // Contract: Exact state history verification across the entire simulation
+    expect(p1.stateHistory).toEqual([
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+    ]);
+
+    expect(p2.stateHistory).toEqual([
+      ProcessState.NOT_STARTED,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+    ]);
+
+    expect(p3.stateHistory).toEqual([
+      ProcessState.NOT_STARTED,
+      ProcessState.NOT_STARTED,
+      ProcessState.NOT_STARTED,
+      ProcessState.NOT_STARTED,
+      ProcessState.NOT_STARTED,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+    ]);
+
+    // Contract: Total RUNNING ticks match executionTime for each process
+    const p1RunningTicks = p1.stateHistory.filter(
+      (s) => s === ProcessState.RUNNING,
+    ).length;
+    const p2RunningTicks = p2.stateHistory.filter(
+      (s) => s === ProcessState.RUNNING,
+    ).length;
+    const p3RunningTicks = p3.stateHistory.filter(
+      (s) => s === ProcessState.RUNNING,
+    ).length;
+    expect(p1RunningTicks).toBe(2);
+    expect(p2RunningTicks).toBe(2);
+    expect(p3RunningTicks).toBe(1);
+
+    // Contract: Mutual exclusion — at most one process is RUNNING on any tick
+    for (let tick = 0; tick < p1.stateHistory.length; tick++) {
+      const runningCount = [p1, p2, p3].filter(
+        (p) => p.stateHistory[tick] === ProcessState.RUNNING,
+      ).length;
+      expect(runningCount).toBeLessThanOrEqual(1);
+    }
+
+    // Contract: All processes finish in COMPLETED
+    expect(p1.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+    expect(p2.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+    expect(p3.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
   });
 });
