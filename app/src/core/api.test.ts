@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { runSimulations } from "./api";
 import fifoPolicyFactory from "./schedulers/fifo";
+import sjfPolicyFactory from "./schedulers/sjf";
 import { ProcessState } from "./types/processState";
 import type Program from "./types/program";
 import type Process from "./types/process";
@@ -52,6 +53,283 @@ function logSimulationTimeline(title: string, processes: Process[]): void {
 }
 
 describe("runSimulations", () => {
+  it("should supply StandardProcessDto with programId and currentState to policies where canTellTheFuture is false", () => {
+    const receivedSnapshots: StandardProcessDto[][] = [];
+
+    const testStandardPolicy: Policy<void> = {
+      id: 99,
+      name: "TestStandard",
+      description: "Inspects StandardProcessDto snapshots",
+      isPreemptive: false,
+      canTellTheFuture: false,
+      initialState: () => undefined,
+      scheduler: (processes, state) => {
+        receivedSnapshots.push([...processes]);
+        return {
+          selectedProgramId: processes[0].programId,
+          nextState: state,
+        };
+      },
+    };
+
+    const programs: Program[] = [
+      { id: 10, executionTime: 1, arrivalTime: 0 },
+      { id: 20, executionTime: 1, arrivalTime: 0 },
+    ];
+
+    runSimulations(programs, [testStandardPolicy]);
+
+    expect(receivedSnapshots.length).toBeGreaterThan(0);
+    const firstTickProcesses = receivedSnapshots[0];
+    expect(firstTickProcesses).toHaveLength(2);
+
+    expect(firstTickProcesses[0].programId).toBe(10);
+    expect(firstTickProcesses[0].currentState).toBe(ProcessState.READY);
+    expect(
+      (firstTickProcesses[0] as unknown as Record<string, unknown>)
+        .remainingExecutionTime,
+    ).toBeUndefined();
+    expect(
+      (firstTickProcesses[0] as unknown as Record<string, unknown>)
+        .remainingBurstTime,
+    ).toBeUndefined();
+
+    expect(firstTickProcesses[1].programId).toBe(20);
+    expect(firstTickProcesses[1].currentState).toBe(ProcessState.READY);
+  });
+
+  it("should supply FutureTellingProcessDto with accurate remainingExecutionTime and remainingBurstTime to future-telling policies", () => {
+    const recordedTicks: {
+      tick: number;
+      processes: FutureTellingProcessDto[];
+    }[] = [];
+
+    const testFuturePolicy: Policy<void> = {
+      id: 100,
+      name: "TestFuture",
+      description: "Inspects FutureTellingProcessDto snapshots",
+      isPreemptive: false,
+      canTellTheFuture: true,
+      initialState: () => undefined,
+      scheduler: (processes, state, context) => {
+        recordedTicks.push({
+          tick: context.tick,
+          processes: processes.map((p) => ({ ...p })),
+        });
+        return {
+          selectedProgramId: processes[0].programId,
+          nextState: state,
+        };
+      },
+    };
+
+    const programs: Program[] = [
+      {
+        id: 1,
+        executionTime: 3,
+        ioSetting: { interval: 1, length: 2 },
+        arrivalTime: 0,
+      },
+      { id: 2, executionTime: 2, arrivalTime: 0 },
+    ];
+
+    runSimulations(programs, [testFuturePolicy]);
+
+    // At tick 0:
+    // P1: remainingExecution 3, burst 1 (min(3, 1 - 0) = 1)
+    // P2: remainingExecution 2, burst 2
+    const tick0 = recordedTicks.find((r) => r.tick === 0);
+    expect(tick0).toBeDefined();
+    const p1Tick0 = tick0!.processes.find((p) => p.programId === 1);
+    const p2Tick0 = tick0!.processes.find((p) => p.programId === 2);
+    expect(p1Tick0).toEqual({
+      programId: 1,
+      currentState: ProcessState.READY,
+      remainingExecutionTime: 3,
+      remainingBurstTime: 1,
+    });
+    expect(p2Tick0).toEqual({
+      programId: 2,
+      currentState: ProcessState.READY,
+      remainingExecutionTime: 2,
+      remainingBurstTime: 2,
+    });
+
+    // At tick 1: P1 blocked on I/O, P2 ready
+    // P2: remainingExecution 2, burst 2
+    const tick1 = recordedTicks.find((r) => r.tick === 1);
+    expect(tick1).toBeDefined();
+    expect(tick1!.processes).toHaveLength(1);
+    expect(tick1!.processes[0]).toEqual({
+      programId: 2,
+      currentState: ProcessState.READY,
+      remainingExecutionTime: 2,
+      remainingBurstTime: 2,
+    });
+
+    // At tick 2: P1 still blocked, P2 ran 1 cycle, so P2 remainingExecution 1, burst 1
+    const tick2 = recordedTicks.find((r) => r.tick === 2);
+    expect(tick2).toBeDefined();
+    expect(tick2!.processes).toHaveLength(1);
+    expect(tick2!.processes[0]).toEqual({
+      programId: 2,
+      currentState: ProcessState.READY,
+      remainingExecutionTime: 1,
+      remainingBurstTime: 1,
+    });
+
+    // At tick 3: P1 unblocks! P2 completed.
+    // P1: remainingExecution 2, cpuTicksSinceIo is 0, burst is min(2, 1 - 0) = 1
+    const tick3 = recordedTicks.find((r) => r.tick === 3);
+    expect(tick3).toBeDefined();
+    expect(tick3!.processes).toHaveLength(1);
+    expect(tick3!.processes[0]).toEqual({
+      programId: 1,
+      currentState: ProcessState.READY,
+      remainingExecutionTime: 2,
+      remainingBurstTime: 1,
+    });
+  });
+
+  it("should set remainingBurstTime to remainingExecutionTime when the job finishes before the next I/O interval", () => {
+    let recordedSnapshot: FutureTellingProcessDto | undefined;
+
+    const testFuturePolicy: Policy<void> = {
+      id: 101,
+      name: "TestFuturePrecedence",
+      description: "Checks burst calculation when executionTime < interval",
+      isPreemptive: false,
+      canTellTheFuture: true,
+      initialState: () => undefined,
+      scheduler: (processes, state) => {
+        if (!recordedSnapshot) {
+          recordedSnapshot = processes[0];
+        }
+        return {
+          selectedProgramId: processes[0].programId,
+          nextState: state,
+        };
+      },
+    };
+
+    const programs: Program[] = [
+      {
+        id: 1,
+        executionTime: 2,
+        ioSetting: { interval: 5, length: 1 },
+        arrivalTime: 0,
+      },
+    ];
+
+    runSimulations(programs, [testFuturePolicy]);
+
+    expect(recordedSnapshot).toBeDefined();
+    expect(recordedSnapshot!.remainingExecutionTime).toBe(2);
+    expect(recordedSnapshot!.remainingBurstTime).toBe(2);
+  });
+
+  it("should keep unarrived processes in NOT_STARTED until their arrival time", () => {
+    const programs: Program[] = [
+      { id: 1, executionTime: 2, arrivalTime: 0 },
+      { id: 2, executionTime: 2, arrivalTime: 1 },
+      { id: 3, executionTime: 1, arrivalTime: 5 },
+    ];
+
+    const fifoPolicy = fifoPolicyFactory(1);
+    const results = runSimulations(programs, [fifoPolicy]);
+    const policyResults = results[fifoPolicy.id];
+
+    logSimulationTimeline(
+      "Staggered Arrival Times with NOT_STARTED and Idle Periods",
+      policyResults,
+    );
+
+    expect(policyResults).toHaveLength(3);
+    const [p1, p2, p3] = policyResults;
+
+    // Contract: Synchronous clock — all processes have identical history lengths
+    expect(p1.stateHistory.length).toBe(p2.stateHistory.length);
+    expect(p2.stateHistory.length).toBe(p3.stateHistory.length);
+
+    // Contract: Processes are in NOT_STARTED before their arrivalTime
+    // P1 arrived at tick 0: never NOT_STARTED
+    expect(
+      p1.stateHistory.filter((s) => s === ProcessState.NOT_STARTED),
+    ).toHaveLength(0);
+
+    // P2 arrived at tick 1: NOT_STARTED at tick 0
+    expect(p2.stateHistory[0]).toBe(ProcessState.NOT_STARTED);
+    // P2 arrives at tick 1 while P1 is RUNNING, so P2 becomes READY
+    expect(p2.stateHistory[1]).toBe(ProcessState.READY);
+
+    // P3 arrived at tick 5: NOT_STARTED for ticks 0, 1, 2, 3, 4
+    for (let tick = 0; tick < 5; tick++) {
+      expect(p3.stateHistory[tick]).toBe(ProcessState.NOT_STARTED);
+    }
+    // P3 arrives at tick 5 when CPU is idle, so it immediately runs
+    expect(p3.stateHistory[5]).toBe(ProcessState.RUNNING);
+
+    // Contract: Exact state history verification across the entire simulation
+    expect(p1.stateHistory).toEqual([
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+    ]);
+
+    expect(p2.stateHistory).toEqual([
+      ProcessState.NOT_STARTED,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+    ]);
+
+    expect(p3.stateHistory).toEqual([
+      ProcessState.NOT_STARTED,
+      ProcessState.NOT_STARTED,
+      ProcessState.NOT_STARTED,
+      ProcessState.NOT_STARTED,
+      ProcessState.NOT_STARTED,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+    ]);
+
+    // Contract: Total RUNNING ticks match executionTime for each process
+    const p1RunningTicks = p1.stateHistory.filter(
+      (s) => s === ProcessState.RUNNING,
+    ).length;
+    const p2RunningTicks = p2.stateHistory.filter(
+      (s) => s === ProcessState.RUNNING,
+    ).length;
+    const p3RunningTicks = p3.stateHistory.filter(
+      (s) => s === ProcessState.RUNNING,
+    ).length;
+    expect(p1RunningTicks).toBe(2);
+    expect(p2RunningTicks).toBe(2);
+    expect(p3RunningTicks).toBe(1);
+
+    // Contract: Mutual exclusion — at most one process is RUNNING on any tick
+    for (let tick = 0; tick < p1.stateHistory.length; tick++) {
+      const runningCount = [p1, p2, p3].filter(
+        (p) => p.stateHistory[tick] === ProcessState.RUNNING,
+      ).length;
+      expect(runningCount).toBeLessThanOrEqual(1);
+    }
+
+    // Contract: All processes finish in COMPLETED
+    expect(p1.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+    expect(p2.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+    expect(p3.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+  });
+});
+
+describe("integration with FIFO", () => {
   it("should simulate a single process to completion", () => {
     const programs: Program[] = [
       {
@@ -224,279 +502,66 @@ describe("runSimulations", () => {
     expect(results[42]).toBeDefined();
     expect(results[42]).toHaveLength(1);
   });
+});
 
-  it("should supply StandardProcessDto with programId and currentState to policies where canTellTheFuture is false", () => {
-    const receivedSnapshots: StandardProcessDto[][] = [];
-
-    const testStandardPolicy: Policy<void> = {
-      id: 99,
-      name: "TestStandard",
-      description: "Inspects StandardProcessDto snapshots",
-      isPreemptive: false,
-      canTellTheFuture: false,
-      initialState: () => undefined,
-      scheduler: (processes, state) => {
-        receivedSnapshots.push([...processes]);
-        return {
-          selectedProgramId: processes[0].programId,
-          nextState: state,
-        };
-      },
-    };
-
+describe("integration with SJF", () => {
+  it("should run the shortest CPU-only job first with SJF", () => {
     const programs: Program[] = [
-      { id: 10, executionTime: 1, arrivalTime: 0 },
-      { id: 20, executionTime: 1, arrivalTime: 0 },
+      { id: 1, executionTime: 5, arrivalTime: 0 },
+      { id: 2, executionTime: 3, arrivalTime: 0 },
     ];
 
-    runSimulations(programs, [testStandardPolicy]);
+    const sjfPolicy = sjfPolicyFactory(2);
+    const results = runSimulations(programs, [sjfPolicy]);
+    const [p1, p2] = results[sjfPolicy.id];
 
-    expect(receivedSnapshots.length).toBeGreaterThan(0);
-    const firstTickProcesses = receivedSnapshots[0];
-    expect(firstTickProcesses).toHaveLength(2);
-
-    expect(firstTickProcesses[0].programId).toBe(10);
-    expect(firstTickProcesses[0].currentState).toBe(ProcessState.READY);
-    expect(
-      (firstTickProcesses[0] as unknown as Record<string, unknown>)
-        .remainingExecutionTime,
-    ).toBeUndefined();
-    expect(
-      (firstTickProcesses[0] as unknown as Record<string, unknown>)
-        .remainingBurstTime,
-    ).toBeUndefined();
-
-    expect(firstTickProcesses[1].programId).toBe(20);
-    expect(firstTickProcesses[1].currentState).toBe(ProcessState.READY);
-  });
-
-  it("should supply FutureTellingProcessDto with accurate remainingExecutionTime and remainingBurstTime to future-telling policies", () => {
-    const recordedTicks: {
-      tick: number;
-      processes: FutureTellingProcessDto[];
-    }[] = [];
-
-    const testFuturePolicy: Policy<void> = {
-      id: 100,
-      name: "TestFuture",
-      description: "Inspects FutureTellingProcessDto snapshots",
-      isPreemptive: false,
-      canTellTheFuture: true,
-      initialState: () => undefined,
-      scheduler: (processes, state, context) => {
-        recordedTicks.push({
-          tick: context.tick,
-          processes: processes.map((p) => ({ ...p })),
-        });
-        return {
-          selectedProgramId: processes[0].programId,
-          nextState: state,
-        };
-      },
-    };
-
-    const programs: Program[] = [
-      {
-        id: 1,
-        executionTime: 3,
-        ioSetting: { interval: 1, length: 2 },
-        arrivalTime: 0,
-      },
-      { id: 2, executionTime: 2, arrivalTime: 0 },
-    ];
-
-    runSimulations(programs, [testFuturePolicy]);
-
-    // At tick 0:
-    // P1: remainingExecution 3, burst 1 (min(3, 1 - 0) = 1)
-    // P2: remainingExecution 2, burst 2
-    const tick0 = recordedTicks.find((r) => r.tick === 0);
-    expect(tick0).toBeDefined();
-    const p1Tick0 = tick0!.processes.find((p) => p.programId === 1);
-    const p2Tick0 = tick0!.processes.find((p) => p.programId === 2);
-    expect(p1Tick0).toEqual({
-      programId: 1,
-      currentState: ProcessState.READY,
-      remainingExecutionTime: 3,
-      remainingBurstTime: 1,
-    });
-    expect(p2Tick0).toEqual({
-      programId: 2,
-      currentState: ProcessState.READY,
-      remainingExecutionTime: 2,
-      remainingBurstTime: 2,
-    });
-
-    // At tick 1: P1 blocked on I/O, P2 ready
-    // P2: remainingExecution 2, burst 2
-    const tick1 = recordedTicks.find((r) => r.tick === 1);
-    expect(tick1).toBeDefined();
-    expect(tick1!.processes).toHaveLength(1);
-    expect(tick1!.processes[0]).toEqual({
-      programId: 2,
-      currentState: ProcessState.READY,
-      remainingExecutionTime: 2,
-      remainingBurstTime: 2,
-    });
-
-    // At tick 2: P1 still blocked, P2 ran 1 cycle, so P2 remainingExecution 1, burst 1
-    const tick2 = recordedTicks.find((r) => r.tick === 2);
-    expect(tick2).toBeDefined();
-    expect(tick2!.processes).toHaveLength(1);
-    expect(tick2!.processes[0]).toEqual({
-      programId: 2,
-      currentState: ProcessState.READY,
-      remainingExecutionTime: 1,
-      remainingBurstTime: 1,
-    });
-
-    // At tick 3: P1 unblocks! P2 completed.
-    // P1: remainingExecution 2, cpuTicksSinceIo is 0, burst is min(2, 1 - 0) = 1
-    const tick3 = recordedTicks.find((r) => r.tick === 3);
-    expect(tick3).toBeDefined();
-    expect(tick3!.processes).toHaveLength(1);
-    expect(tick3!.processes[0]).toEqual({
-      programId: 1,
-      currentState: ProcessState.READY,
-      remainingExecutionTime: 2,
-      remainingBurstTime: 1,
-    });
-  });
-
-  it("should calculate remainingBurstTime as remainingExecutionTime when program completes before next I/O interval", () => {
-    let recordedSnapshot: FutureTellingProcessDto | undefined;
-
-    const testFuturePolicy: Policy<void> = {
-      id: 101,
-      name: "TestFuturePrecedence",
-      description: "Checks burst calculation when executionTime < interval",
-      isPreemptive: false,
-      canTellTheFuture: true,
-      initialState: () => undefined,
-      scheduler: (processes, state) => {
-        if (!recordedSnapshot) {
-          recordedSnapshot = processes[0];
-        }
-        return {
-          selectedProgramId: processes[0].programId,
-          nextState: state,
-        };
-      },
-    };
-
-    const programs: Program[] = [
-      {
-        id: 1,
-        executionTime: 2,
-        ioSetting: { interval: 5, length: 1 },
-        arrivalTime: 0,
-      },
-    ];
-
-    runSimulations(programs, [testFuturePolicy]);
-
-    expect(recordedSnapshot).toBeDefined();
-    expect(recordedSnapshot!.remainingExecutionTime).toBe(2);
-    expect(recordedSnapshot!.remainingBurstTime).toBe(2);
-  });
-
-  it("should respect arrivalTime by keeping unarrived processes in NOT_STARTED until their arrival tick", () => {
-    const programs: Program[] = [
-      { id: 1, executionTime: 2, arrivalTime: 0 },
-      { id: 2, executionTime: 2, arrivalTime: 1 },
-      { id: 3, executionTime: 1, arrivalTime: 5 },
-    ];
-
-    const fifoPolicy = fifoPolicyFactory(1);
-    const results = runSimulations(programs, [fifoPolicy]);
-    const policyResults = results[fifoPolicy.id];
-
-    logSimulationTimeline(
-      "Staggered Arrival Times with NOT_STARTED and Idle Periods",
-      policyResults,
-    );
-
-    expect(policyResults).toHaveLength(3);
-    const [p1, p2, p3] = policyResults;
-
-    // Contract: Synchronous clock — all processes have identical history lengths
-    expect(p1.stateHistory.length).toBe(p2.stateHistory.length);
-    expect(p2.stateHistory.length).toBe(p3.stateHistory.length);
-
-    // Contract: Processes are in NOT_STARTED before their arrivalTime
-    // P1 arrived at tick 0: never NOT_STARTED
-    expect(
-      p1.stateHistory.filter((s) => s === ProcessState.NOT_STARTED),
-    ).toHaveLength(0);
-
-    // P2 arrived at tick 1: NOT_STARTED at tick 0
-    expect(p2.stateHistory[0]).toBe(ProcessState.NOT_STARTED);
-    // P2 arrives at tick 1 while P1 is RUNNING, so P2 becomes READY
-    expect(p2.stateHistory[1]).toBe(ProcessState.READY);
-
-    // P3 arrived at tick 5: NOT_STARTED for ticks 0, 1, 2, 3, 4
-    for (let tick = 0; tick < 5; tick++) {
-      expect(p3.stateHistory[tick]).toBe(ProcessState.NOT_STARTED);
-    }
-    // P3 arrives at tick 5 when CPU is idle, so it immediately runs
-    expect(p3.stateHistory[5]).toBe(ProcessState.RUNNING);
-
-    // Contract: Exact state history verification across the entire simulation
-    expect(p1.stateHistory).toEqual([
+    expect(p2.stateHistory.slice(0, 3)).toEqual([
       ProcessState.RUNNING,
       ProcessState.RUNNING,
-      ProcessState.COMPLETED,
-      ProcessState.COMPLETED,
-      ProcessState.COMPLETED,
-      ProcessState.COMPLETED,
-      ProcessState.COMPLETED,
+      ProcessState.RUNNING,
     ]);
-
-    expect(p2.stateHistory).toEqual([
-      ProcessState.NOT_STARTED,
+    expect(p1.stateHistory.slice(0, 3)).toEqual([
       ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.RUNNING,
-      ProcessState.COMPLETED,
-      ProcessState.COMPLETED,
-      ProcessState.COMPLETED,
+      ProcessState.READY,
+      ProcessState.READY,
     ]);
-
-    expect(p3.stateHistory).toEqual([
-      ProcessState.NOT_STARTED,
-      ProcessState.NOT_STARTED,
-      ProcessState.NOT_STARTED,
-      ProcessState.NOT_STARTED,
-      ProcessState.NOT_STARTED,
-      ProcessState.RUNNING,
-      ProcessState.COMPLETED,
-    ]);
-
-    // Contract: Total RUNNING ticks match executionTime for each process
-    const p1RunningTicks = p1.stateHistory.filter(
-      (s) => s === ProcessState.RUNNING,
-    ).length;
-    const p2RunningTicks = p2.stateHistory.filter(
-      (s) => s === ProcessState.RUNNING,
-    ).length;
-    const p3RunningTicks = p3.stateHistory.filter(
-      (s) => s === ProcessState.RUNNING,
-    ).length;
-    expect(p1RunningTicks).toBe(2);
-    expect(p2RunningTicks).toBe(2);
-    expect(p3RunningTicks).toBe(1);
-
-    // Contract: Mutual exclusion — at most one process is RUNNING on any tick
-    for (let tick = 0; tick < p1.stateHistory.length; tick++) {
-      const runningCount = [p1, p2, p3].filter(
-        (p) => p.stateHistory[tick] === ProcessState.RUNNING,
-      ).length;
-      expect(runningCount).toBeLessThanOrEqual(1);
-    }
-
-    // Contract: All processes finish in COMPLETED
+    expect(
+      p1.stateHistory.filter((state) => state === ProcessState.RUNNING),
+    ).toHaveLength(5);
+    expect(
+      p2.stateHistory.filter((state) => state === ProcessState.RUNNING),
+    ).toHaveLength(3);
     expect(p1.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
     expect(p2.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
-    expect(p3.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+  });
+
+  it("should choose the shortest next CPU burst for SJF jobs, including I/O-aware timing", () => {
+    const programs: Program[] = [
+      {
+        id: 1,
+        executionTime: 4,
+        ioSetting: { interval: 2, length: 1 },
+        arrivalTime: 0,
+      },
+      { id: 2, executionTime: 3, arrivalTime: 0 },
+    ];
+
+    const sjfPolicy = sjfPolicyFactory(3);
+    const results = runSimulations(programs, [sjfPolicy]);
+    const [p1, p2] = results[sjfPolicy.id];
+
+    expect(p1.stateHistory[0]).toBe(ProcessState.RUNNING);
+    expect(p2.stateHistory[0]).toBe(ProcessState.READY);
+    expect(p1.stateHistory[1]).toBe(ProcessState.RUNNING);
+    expect(p1.stateHistory[2]).toBe(ProcessState.BLOCKED);
+    expect(p2.stateHistory[2]).toBe(ProcessState.RUNNING);
+    expect(
+      p1.stateHistory.filter((state) => state === ProcessState.RUNNING),
+    ).toHaveLength(4);
+    expect(
+      p2.stateHistory.filter((state) => state === ProcessState.RUNNING),
+    ).toHaveLength(3);
+    expect(p1.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+    expect(p2.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
   });
 });

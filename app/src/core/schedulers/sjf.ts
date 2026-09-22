@@ -4,11 +4,10 @@ import type { FutureTellingProcessDto } from "../types/processDto";
 
 function sjfScheduler(
   processes: readonly FutureTellingProcessDto[],
-  state: {},
+  state: object,
   context: SchedulerContext,
-): SchedulerDecision<{}> {
-  if (processes.length == 0)
-    throw RangeError("Process list cannot be empty.");
+): SchedulerDecision<object> {
+  if (processes.length == 0) throw RangeError("Process list cannot be empty.");
   if (context.runningProcessId !== undefined)
     return { selectedProgramId: context.runningProcessId, nextState: {} };
   let shortest = processes[0];
@@ -17,10 +16,10 @@ function sjfScheduler(
       shortest = processes[index];
   }
 
-  return {selectedProgramId: shortest.programId, nextState: {}};
+  return { selectedProgramId: shortest.programId, nextState: {} };
 }
 
-export default function fifoPolicyFactory(id: number): Policy<{}> {
+export default function sjfPolicyFactory(id: number): Policy<object> {
   return {
     id,
     name: "SJF",
