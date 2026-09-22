@@ -57,6 +57,7 @@ describe("runSimulations", () => {
       {
         id: 1,
         executionTime: 3,
+        arrivalTime: 0,
       },
     ];
 
@@ -82,8 +83,8 @@ describe("runSimulations", () => {
 
   it("should maintain mutual exclusion and synchronous history lengths across multiple processes", () => {
     const programs: Program[] = [
-      { id: 1, executionTime: 2 },
-      { id: 2, executionTime: 3 },
+      { id: 1, executionTime: 2, arrivalTime: 0 },
+      { id: 2, executionTime: 3, arrivalTime: 0 },
     ];
 
     const fifoPolicy = fifoPolicyFactory(1);
@@ -128,10 +129,12 @@ describe("runSimulations", () => {
         id: 1,
         executionTime: 3,
         ioSetting: { interval: 1, length: 2 },
+        arrivalTime: 0,
       },
       {
         id: 2,
         executionTime: 2,
+        arrivalTime: 0,
       },
     ];
 
@@ -175,6 +178,7 @@ describe("runSimulations", () => {
         id: 1,
         executionTime: 2,
         ioSetting: { interval: 1, length: 2 },
+        arrivalTime: 0,
       },
     ];
 
@@ -215,7 +219,7 @@ describe("runSimulations", () => {
     expect(fifoPolicy.canTellTheFuture).toBe(false);
     expect(fifoPolicy.initialState()).toEqual({ queue: [] });
 
-    const programs: Program[] = [{ id: 1, executionTime: 1 }];
+    const programs: Program[] = [{ id: 1, executionTime: 1, arrivalTime: 0 }];
     const results = runSimulations(programs, [fifoPolicy]);
     expect(results[42]).toBeDefined();
     expect(results[42]).toHaveLength(1);
@@ -241,8 +245,8 @@ describe("runSimulations", () => {
     };
 
     const programs: Program[] = [
-      { id: 10, executionTime: 1 },
-      { id: 20, executionTime: 1 },
+      { id: 10, executionTime: 1, arrivalTime: 0 },
+      { id: 20, executionTime: 1, arrivalTime: 0 },
     ];
 
     runSimulations(programs, [testStandardPolicy]);
@@ -292,8 +296,13 @@ describe("runSimulations", () => {
     };
 
     const programs: Program[] = [
-      { id: 1, executionTime: 3, ioSetting: { interval: 1, length: 2 } },
-      { id: 2, executionTime: 2 },
+      {
+        id: 1,
+        executionTime: 3,
+        ioSetting: { interval: 1, length: 2 },
+        arrivalTime: 0,
+      },
+      { id: 2, executionTime: 2, arrivalTime: 0 },
     ];
 
     runSimulations(programs, [testFuturePolicy]);
@@ -376,7 +385,12 @@ describe("runSimulations", () => {
     };
 
     const programs: Program[] = [
-      { id: 1, executionTime: 2, ioSetting: { interval: 5, length: 1 } },
+      {
+        id: 1,
+        executionTime: 2,
+        ioSetting: { interval: 5, length: 1 },
+        arrivalTime: 0,
+      },
     ];
 
     runSimulations(programs, [testFuturePolicy]);

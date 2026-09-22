@@ -8,6 +8,7 @@ import type {
   FutureTellingProcessDto,
 } from "./types/processDto";
 import fifoPolicyFactory from "./schedulers/fifo";
+
 interface ProcessSimulationState {
   process: Process;
   remainingExecution: number;
@@ -69,9 +70,13 @@ function createSimulationState(programs: Program[]): SimulationState {
 }
 
 // Returns the indices of processes that can be scheduled on the current tick.
-function getReadyIndices(state: SimulationState): number[] {
+function getReadyIndices(state: SimulationState, tick: number): number[] {
   return state.processes.reduce<number[]>((indices, processState, index) => {
-    if (!processState.completed && processState.blockedTicksRemaining === 0) {
+    if (
+      tick >= processState.process.program.arrivalTime &&
+      !processState.completed &&
+      processState.blockedTicksRemaining === 0
+    ) {
       indices.push(index);
     }
     return indices;
@@ -158,8 +163,14 @@ function advanceProcess(
   index: number,
   selectedIndex: number | undefined,
   state: SimulationState,
+  tick: number,
 ): void {
   const { process } = processState;
+
+  if (tick < process.program.arrivalTime) {
+    process.stateHistory.push(ProcessState.NOT_STARTED);
+    return;
+  }
 
   if (processState.completionRecorded || processState.completed) {
     process.stateHistory.push(ProcessState.COMPLETED);
@@ -223,7 +234,7 @@ export function runSimulations(
         const { selectedIndex, nextPolicyState } = selectProcessIndex(
           policy,
           state,
-          getReadyIndices(state),
+          getReadyIndices(state, tick),
           policyState,
           tick,
         );
@@ -231,7 +242,7 @@ export function runSimulations(
         policyState = nextPolicyState;
 
         state.processes.forEach((processState, index) => {
-          advanceProcess(processState, index, selectedIndex, state);
+          advanceProcess(processState, index, selectedIndex, state, tick);
         });
 
         tick += 1;
