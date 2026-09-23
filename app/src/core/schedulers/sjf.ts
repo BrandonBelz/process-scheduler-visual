@@ -4,7 +4,7 @@ import type { FutureTellingProcessDto } from "../types/processDto";
 
 function sjfScheduler(
   processes: readonly FutureTellingProcessDto[],
-  state: object,
+  _state: object,
   context: SchedulerContext,
 ): SchedulerDecision<object> {
   if (processes.length == 0) throw RangeError("Process list cannot be empty.");
