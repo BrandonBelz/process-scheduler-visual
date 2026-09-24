@@ -25,3 +25,7 @@ dist-ssr
 
 # Coverage
 coverage
+
+# Claude
+.claude/*
+.claude/launch.json

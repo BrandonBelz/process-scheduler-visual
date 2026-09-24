@@ -1,121 +1,43 @@
-import { useState } from "react";
-import heroImg from "./assets/hero.png";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "./assets/vite.svg";
+import { runSimulations } from "./core/api";
+import fifoPolicyFactory from "./core/schedulers/fifo";
+import type Program from "./core/types/program";
+import ProcessTimeline from "./components/ProcessTimeline";
+import ResultsTable, { type RunMetrics } from "./components/ResultsTable";
 import "./App.css";
 
+const programs: Program[] = [
+  { id: 0, executionTime: 3, arrivalTime: 0 },
+  {
+    id: 1,
+    executionTime: 4,
+    arrivalTime: 0,
+    ioSetting: { interval: 2, length: 2 },
+  },
+  { id: 2, executionTime: 2, arrivalTime: 0 },
+];
+
+const fifo = fifoPolicyFactory(1);
+const processes = runSimulations(programs, [fifo])[fifo.id];
+
+// Temporary until core provides a metrics function; values match the run above.
+const mockMetrics: RunMetrics = {
+  processes: [
+    { programId: 0, turnaroundTime: 3, responseTime: 0 },
+    { programId: 1, turnaroundTime: 9, responseTime: 3 },
+    { programId: 2, turnaroundTime: 7, responseTime: 5 },
+  ],
+  meanTurnaroundTime: 19 / 3,
+  meanResponseTime: 8 / 3,
+};
+
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <main className="app">
+      <h1>{fifo.name}</h1>
+      <ProcessTimeline processes={processes} />
+      <h2>Results</h2>
+      <ResultsTable metrics={mockMetrics} />
+    </main>
   );
 }
 

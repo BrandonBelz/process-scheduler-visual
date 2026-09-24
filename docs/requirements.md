@@ -89,6 +89,7 @@ Required December policies: FIFO, SJF, RR, and STCF. All confirmed functional ca
 | FR-025 | Provide charts comparing simulation results. | Optional stretch goal | Chart types and metric presentation TBD; the required results table is sufficient for the MVP. |
 | FR-026 | Allow editing, removing, and reordering policy instances. | Required | Reordering changes display order only. Distinguish duplicate instances by number and relevant settings, such as `RR #2 - slice 5`. |
 | FR-027 | Validate inputs with messages beside the affected fields. | Required | Missing required, nonnumeric, fractional, and out-of-range values prevent running until corrected. Retain editable inputs and explain each correction; inactive I/O fields must not block running. |
+| FR-028 | Import/Export workload config files | Required | Users can save their configured workloads and policies and export to json. Users can load presets from the previously exported json. Exact method TBD.
 
 ## 5. Simulation rules
 
