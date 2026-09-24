@@ -8,6 +8,7 @@ import type {
   FutureTellingProcessDto,
 } from "./types/processDto";
 import fifoPolicyFactory from "./schedulers/fifo";
+import sjfPolicyFactory from "./schedulers/sjf";
 
 interface ProcessSimulationState {
   process: Process;
@@ -254,5 +255,5 @@ export function runSimulations(
 }
 
 export function getPolicies(): Policy[] {
-  return [fifoPolicyFactory(1)];
+  return [fifoPolicyFactory(1), sjfPolicyFactory(2)];
 }
