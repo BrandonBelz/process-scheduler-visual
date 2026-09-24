@@ -98,6 +98,7 @@ function StateCell({ state, title }: { state: ProcessState; title?: string }) {
     <span
       className={`${styles.cell} ${className}`}
       title={title ? `${title}: ${label}` : label}
+      aria-label={title ? `${title}: ${label}` : label}
     >
       {symbol}
     </span>
