@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { runSimulations } from "./api";
 import fifoPolicyFactory from "./schedulers/fifo";
 import sjfPolicyFactory from "./schedulers/sjf";
+import stcfPolicyFactory from "./schedulers/stcf";
 import { ProcessState } from "./types/processState";
 import type Program from "./types/program";
 import type Process from "./types/process";
@@ -96,6 +97,36 @@ describe("runSimulations", () => {
 
     expect(firstTickProcesses[1].programId).toBe(20);
     expect(firstTickProcesses[1].currentState).toBe(ProcessState.READY);
+  });
+
+  it("should preempt a longer running process when a shorter process arrives", () => {
+    const programs: Program[] = [
+      { id: 1, executionTime: 4, arrivalTime: 0 },
+      { id: 2, executionTime: 1, arrivalTime: 1 },
+    ];
+
+    const stcfPolicy = stcfPolicyFactory(5);
+    const results = runSimulations(programs, [stcfPolicy]);
+    const [p1, p2] = results[stcfPolicy.id];
+
+    expect(p1.stateHistory).toEqual([
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+    ]);
+    expect(p2.stateHistory).toEqual([
+      ProcessState.NOT_STARTED,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+    ]);
+    expect(p1.stateHistory[1]).toBe(ProcessState.READY);
+    expect(p2.stateHistory[1]).toBe(ProcessState.RUNNING);
   });
 
   it("should supply FutureTellingProcessDto with accurate remainingExecutionTime and remainingBurstTime to future-telling policies", () => {
@@ -562,6 +593,47 @@ describe("integration with SJF", () => {
     expect(
       p1.stateHistory.filter((state) => state === ProcessState.RUNNING),
     ).toHaveLength(4);
+    expect(
+      p2.stateHistory.filter((state) => state === ProcessState.RUNNING),
+    ).toHaveLength(3);
+    expect(p1.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+    expect(p2.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+  });
+});
+
+describe("integration with STCF", () => {
+  it("should create an STCF policy with the expected properties and select the shortest burst", () => {
+    const stcfPolicy = stcfPolicyFactory(4);
+    expect(stcfPolicy.id).toBe(4);
+    expect(stcfPolicy.name).toBe("STCF");
+    expect(stcfPolicy.isPreemptive).toBe(true);
+    expect(stcfPolicy.canTellTheFuture).toBe(true);
+    expect(stcfPolicy.initialState()).toEqual({});
+
+    const programs: Program[] = [
+      { id: 1, executionTime: 5, arrivalTime: 0 },
+      { id: 2, executionTime: 3, arrivalTime: 0 },
+    ];
+    const results = runSimulations(programs, [stcfPolicy]);
+    logSimulationTimeline(
+      "Shortest Total CPU Burst (STCF)",
+      results[stcfPolicy.id],
+    );
+    const [p1, p2] = results[stcfPolicy.id];
+
+    expect(p1.stateHistory.slice(0, 3)).toEqual([
+      ProcessState.READY,
+      ProcessState.READY,
+      ProcessState.READY,
+    ]);
+    expect(p2.stateHistory.slice(0, 3)).toEqual([
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+    ]);
+    expect(
+      p1.stateHistory.filter((state) => state === ProcessState.RUNNING),
+    ).toHaveLength(5);
     expect(
       p2.stateHistory.filter((state) => state === ProcessState.RUNNING),
     ).toHaveLength(3);
