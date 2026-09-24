@@ -9,6 +9,7 @@ import type {
 } from "./types/processDto";
 import fifoPolicyFactory from "./schedulers/fifo";
 import sjfPolicyFactory from "./schedulers/sjf";
+import stcfPolicyFactory from "./schedulers/stcf";
 
 interface ProcessSimulationState {
   process: Process;
@@ -255,5 +256,5 @@ export function runSimulations(
 }
 
 export function getPolicies(): Policy[] {
-  return [fifoPolicyFactory(1), sjfPolicyFactory(2)];
+  return [fifoPolicyFactory(0), sjfPolicyFactory(1), stcfPolicyFactory(2)];
 }
