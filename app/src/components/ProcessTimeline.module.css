@@ -13,10 +13,10 @@
   .timeline {
     --state-running-bg: #22c55e;
     --state-running-fg: #052e16;
-    --state-ready-bg: #422006;
-    --state-ready-fg: #fcd34d;
-    --state-blocked-bg: #450a0a;
-    --state-blocked-fg: #fca5a5;
+    --state-ready-bg: #fccc4d;
+    --state-ready-fg: #3c2e07;
+    --state-blocked-bg: #fc4b4b;
+    --state-blocked-fg: #261313;
     --state-completed-bg: #2e303a;
     --state-completed-fg: #9ca3af;
   }
