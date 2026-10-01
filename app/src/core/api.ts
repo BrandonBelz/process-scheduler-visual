@@ -10,6 +10,7 @@ import type {
 import fifoPolicyFactory from "./schedulers/fifo";
 import sjfPolicyFactory from "./schedulers/sjf";
 import stcfPolicyFactory from "./schedulers/stcf";
+import type Statistic from "./types/statistic";
 
 interface ProcessSimulationState {
   process: Process;
@@ -253,6 +254,45 @@ export function runSimulations(
       return [policy.id, state.processes.map(({ process }) => process)];
     }),
   );
+}
+
+function calculateTurnaround(process: Process): number {
+  const completion = process.stateHistory.findIndex(
+    (state) => state === ProcessState.COMPLETED,
+  );
+  return completion - process.program.arrivalTime;
+}
+
+function calculateResponse(process: Process): number {
+  const firstRun = process.stateHistory.findIndex(
+    (state) => state === ProcessState.RUNNING,
+  );
+  return firstRun - process.program.arrivalTime;
+}
+
+function calculateStatistics(processes: Process[]): Statistic[] {
+  const turnaroundTime =
+    processes.reduce((acc, process) => acc + calculateTurnaround(process), 0) /
+    processes.length;
+  const responseTime =
+    processes.reduce((acc, process) => acc + calculateResponse(process), 0) /
+    processes.length;
+
+  return [
+    { name: "Average Turnaround Time", value: turnaroundTime },
+    { name: "Average Response Time", value: responseTime },
+  ];
+}
+
+export function calculateAllStatistics(
+  simResults: Record<number, Process[]>,
+): Record<number, Statistic[]> {
+  const entries = Object.entries(simResults);
+  const result: Record<number, Statistic[]> = {};
+  entries.forEach((value) => {
+    result[Number(value[0])] = calculateStatistics(value[1]);
+  });
+  return result;
 }
 
 export function getPolicies(): Policy[] {

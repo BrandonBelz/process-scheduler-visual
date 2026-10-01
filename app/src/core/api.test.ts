@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runSimulations } from "./api";
+import { calculateAllStatistics, runSimulations } from "./api";
 import fifoPolicyFactory from "./schedulers/fifo";
 import sjfPolicyFactory from "./schedulers/sjf";
 import stcfPolicyFactory from "./schedulers/stcf";
@@ -352,6 +352,53 @@ describe("runSimulations", () => {
     expect(p1.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
     expect(p2.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
     expect(p3.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+  });
+});
+
+describe("calculateAllStatistics", () => {
+  it("should calculate statistics for every policy result", () => {
+    const simulationResults: Record<number, Process[]> = {
+      7: [
+        {
+          program: { id: 1, executionTime: 2, arrivalTime: 0 },
+          stateHistory: [
+            ProcessState.RUNNING,
+            ProcessState.RUNNING,
+            ProcessState.COMPLETED,
+          ],
+        },
+        {
+          program: { id: 2, executionTime: 1, arrivalTime: 1 },
+          stateHistory: [
+            ProcessState.NOT_STARTED,
+            ProcessState.RUNNING,
+            ProcessState.COMPLETED,
+          ],
+        },
+      ],
+      8: [
+        {
+          program: { id: 3, executionTime: 1, arrivalTime: 2 },
+          stateHistory: [
+            ProcessState.NOT_STARTED,
+            ProcessState.NOT_STARTED,
+            ProcessState.RUNNING,
+            ProcessState.COMPLETED,
+          ],
+        },
+      ],
+    };
+
+    expect(calculateAllStatistics(simulationResults)).toEqual({
+      7: [
+        { name: "Average Turnaround Time", value: 1.5 },
+        { name: "Average Response Time", value: 0 },
+      ],
+      8: [
+        { name: "Average Turnaround Time", value: 1 },
+        { name: "Average Response Time", value: 0 },
+      ],
+    });
   });
 });
 
