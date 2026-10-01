@@ -10,7 +10,7 @@ import type {
 import fifoPolicyFactory from "./schedulers/fifo";
 import sjfPolicyFactory from "./schedulers/sjf";
 import stcfPolicyFactory from "./schedulers/stcf";
-import type Statistic from "./types/statistic";
+import type { Statistic, StatisticResult } from "./types/statistic";
 
 interface ProcessSimulationState {
   process: Process;
@@ -42,9 +42,9 @@ function createFutureTellingProcessDto(
   const remainingBurstTime =
     ioSetting !== undefined && ioSetting.interval > 0
       ? Math.min(
-          processState.remainingExecution,
-          ioSetting.interval - processState.cpuTicksSinceIo,
-        )
+        processState.remainingExecution,
+        ioSetting.interval - processState.cpuTicksSinceIo,
+      )
       : processState.remainingExecution;
 
   return {
@@ -124,19 +124,19 @@ function selectProcessIndex<TState>(
 
   const decision = policy.canTellTheFuture
     ? policy.scheduler(
-        readyIndices.map((index) =>
-          createFutureTellingProcessDto(state.processes[index]),
-        ),
-        policyState,
-        context,
-      )
+      readyIndices.map((index) =>
+        createFutureTellingProcessDto(state.processes[index]),
+      ),
+      policyState,
+      context,
+    )
     : policy.scheduler(
-        readyIndices.map((index) =>
-          createStandardProcessDto(state.processes[index]),
-        ),
-        policyState,
-        context,
-      );
+      readyIndices.map((index) =>
+        createStandardProcessDto(state.processes[index]),
+      ),
+      policyState,
+      context,
+    );
 
   let selectedIndex: number;
   if (!canPreempt) {
@@ -271,16 +271,34 @@ function calculateResponse(process: Process): number {
 }
 
 function calculateStatistics(processes: Process[]): Statistic[] {
-  const turnaroundTime =
-    processes.reduce((acc, process) => acc + calculateTurnaround(process), 0) /
-    processes.length;
-  const responseTime =
-    processes.reduce((acc, process) => acc + calculateResponse(process), 0) /
-    processes.length;
+  const numProcesses = processes.length;
+  const responseTimeResult: StatisticResult = {
+    values: [],
+    average: 0
+  };
+  const turnaroundTimeResult: StatisticResult = {
+    values: [],
+    average: 0
+  };
+
+  processes.forEach((process) => {
+    const programId = process.program.id;
+
+    const responseTime = calculateResponse(process);
+    responseTimeResult.values.push({value: responseTime, programId: programId});
+    responseTimeResult.average += responseTime;
+
+    const turnaroundTime = calculateTurnaround(process);
+    turnaroundTimeResult.values.push({value: turnaroundTime, programId: programId});
+    turnaroundTimeResult.average += turnaroundTime;
+  })
+
+  responseTimeResult.average /= numProcesses;
+  turnaroundTimeResult.average /= numProcesses;
 
   return [
-    { name: "Average Turnaround Time", value: turnaroundTime },
-    { name: "Average Response Time", value: responseTime },
+    { name: "Response Time", results: responseTimeResult },
+    { name: "Turnaround Time", results: turnaroundTimeResult }
   ];
 }
 
