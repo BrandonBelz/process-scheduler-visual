@@ -1,13 +1,12 @@
 export interface StatisticResult {
-    values: {
-        programId: number;
-        value: number;
-    }[];
-    average: number;
-
+  values: {
+    programId: number;
+    value: number;
+  }[];
+  average: number;
 }
 
 export interface Statistic {
-    name: string;
-    results: StatisticResult
+  name: string;
+  results: StatisticResult;
 }

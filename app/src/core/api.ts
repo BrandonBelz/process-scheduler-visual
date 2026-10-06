@@ -42,9 +42,9 @@ function createFutureTellingProcessDto(
   const remainingBurstTime =
     ioSetting !== undefined && ioSetting.interval > 0
       ? Math.min(
-        processState.remainingExecution,
-        ioSetting.interval - processState.cpuTicksSinceIo,
-      )
+          processState.remainingExecution,
+          ioSetting.interval - processState.cpuTicksSinceIo,
+        )
       : processState.remainingExecution;
 
   return {
@@ -124,19 +124,19 @@ function selectProcessIndex<TState>(
 
   const decision = policy.canTellTheFuture
     ? policy.scheduler(
-      readyIndices.map((index) =>
-        createFutureTellingProcessDto(state.processes[index]),
-      ),
-      policyState,
-      context,
-    )
+        readyIndices.map((index) =>
+          createFutureTellingProcessDto(state.processes[index]),
+        ),
+        policyState,
+        context,
+      )
     : policy.scheduler(
-      readyIndices.map((index) =>
-        createStandardProcessDto(state.processes[index]),
-      ),
-      policyState,
-      context,
-    );
+        readyIndices.map((index) =>
+          createStandardProcessDto(state.processes[index]),
+        ),
+        policyState,
+        context,
+      );
 
   let selectedIndex: number;
   if (!canPreempt) {
@@ -274,31 +274,37 @@ function calculateStatistics(processes: Process[]): Statistic[] {
   const numProcesses = processes.length;
   const responseTimeResult: StatisticResult = {
     values: [],
-    average: 0
+    average: 0,
   };
   const turnaroundTimeResult: StatisticResult = {
     values: [],
-    average: 0
+    average: 0,
   };
 
   processes.forEach((process) => {
     const programId = process.program.id;
 
     const responseTime = calculateResponse(process);
-    responseTimeResult.values.push({value: responseTime, programId: programId});
+    responseTimeResult.values.push({
+      value: responseTime,
+      programId: programId,
+    });
     responseTimeResult.average += responseTime;
 
     const turnaroundTime = calculateTurnaround(process);
-    turnaroundTimeResult.values.push({value: turnaroundTime, programId: programId});
+    turnaroundTimeResult.values.push({
+      value: turnaroundTime,
+      programId: programId,
+    });
     turnaroundTimeResult.average += turnaroundTime;
-  })
+  });
 
   responseTimeResult.average /= numProcesses;
   turnaroundTimeResult.average /= numProcesses;
 
   return [
     { name: "Response Time", results: responseTimeResult },
-    { name: "Turnaround Time", results: turnaroundTimeResult }
+    { name: "Turnaround Time", results: turnaroundTimeResult },
   ];
 }
 

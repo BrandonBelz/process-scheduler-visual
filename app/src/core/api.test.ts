@@ -391,12 +391,42 @@ describe("calculateAllStatistics", () => {
 
     expect(calculateAllStatistics(simulationResults)).toEqual({
       7: [
-        { name: "Average Turnaround Time", value: 1.5 },
-        { name: "Average Response Time", value: 0 },
+        {
+          name: "Response Time",
+          results: {
+            values: [
+              { value: 0, programId: 1 },
+              { value: 0, programId: 2 },
+            ],
+            average: 0,
+          },
+        },
+        {
+          name: "Turnaround Time",
+          results: {
+            values: [
+              { value: 2, programId: 1 },
+              { value: 1, programId: 2 },
+            ],
+            average: 1.5,
+          },
+        },
       ],
       8: [
-        { name: "Average Turnaround Time", value: 1 },
-        { name: "Average Response Time", value: 0 },
+        {
+          name: "Response Time",
+          results: {
+            values: [{ value: 0, programId: 3 }],
+            average: 0,
+          },
+        },
+        {
+          name: "Turnaround Time",
+          results: {
+            values: [{ value: 1, programId: 3 }],
+            average: 1,
+          },
+        },
       ],
     });
   });
