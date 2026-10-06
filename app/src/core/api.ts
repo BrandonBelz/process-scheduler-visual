@@ -10,6 +10,7 @@ import type {
 import fifoPolicyFactory from "./schedulers/fifo";
 import sjfPolicyFactory from "./schedulers/sjf";
 import stcfPolicyFactory from "./schedulers/stcf";
+import type { Statistic, StatisticResult } from "./types/statistic";
 
 interface ProcessSimulationState {
   process: Process;
@@ -253,6 +254,69 @@ export function runSimulations(
       return [policy.id, state.processes.map(({ process }) => process)];
     }),
   );
+}
+
+function calculateTurnaround(process: Process): number {
+  const completion = process.stateHistory.findIndex(
+    (state) => state === ProcessState.COMPLETED,
+  );
+  return completion - process.program.arrivalTime;
+}
+
+function calculateResponse(process: Process): number {
+  const firstRun = process.stateHistory.findIndex(
+    (state) => state === ProcessState.RUNNING,
+  );
+  return firstRun - process.program.arrivalTime;
+}
+
+function calculateStatistics(processes: Process[]): Statistic[] {
+  const numProcesses = processes.length;
+  const responseTimeResult: StatisticResult = {
+    values: [],
+    average: 0,
+  };
+  const turnaroundTimeResult: StatisticResult = {
+    values: [],
+    average: 0,
+  };
+
+  processes.forEach((process) => {
+    const programId = process.program.id;
+
+    const responseTime = calculateResponse(process);
+    responseTimeResult.values.push({
+      value: responseTime,
+      programId: programId,
+    });
+    responseTimeResult.average += responseTime;
+
+    const turnaroundTime = calculateTurnaround(process);
+    turnaroundTimeResult.values.push({
+      value: turnaroundTime,
+      programId: programId,
+    });
+    turnaroundTimeResult.average += turnaroundTime;
+  });
+
+  responseTimeResult.average /= numProcesses;
+  turnaroundTimeResult.average /= numProcesses;
+
+  return [
+    { name: "Response Time", results: responseTimeResult },
+    { name: "Turnaround Time", results: turnaroundTimeResult },
+  ];
+}
+
+export function calculateAllStatistics(
+  simResults: Record<number, Process[]>,
+): Record<number, Statistic[]> {
+  const entries = Object.entries(simResults);
+  const result: Record<number, Statistic[]> = {};
+  entries.forEach((value) => {
+    result[Number(value[0])] = calculateStatistics(value[1]);
+  });
+  return result;
 }
 
 export function getPolicies(): Policy[] {
