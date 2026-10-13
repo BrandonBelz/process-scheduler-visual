@@ -5,6 +5,7 @@ import type { FutureTellingProcessDto } from "../types/processDto";
 function stcfScheduler(
   processes: readonly FutureTellingProcessDto[],
   _state: object,
+  _config: object,
   _context: SchedulerContext,
 ): SchedulerDecision<object> {
   if (processes.length == 0) throw RangeError("Process list cannot be empty.");
@@ -17,14 +18,14 @@ function stcfScheduler(
   return { selectedProgramId: shortest.programId, nextState: {} };
 }
 
-export default function stcfPolicyFactory(id: number): Policy<object> {
+export default function stcfPolicyFactory(): Policy<object> {
   return {
-    id,
     name: "STCF",
     description:
       "Shortest Time to Completion First (STCF) is a preemptive scheduling algorithm that selects the process with the shortest remaining burst time to execute next. It is the preemptive version of Shortest Job First (SJF) and can lead to better responsiveness for shorter processes.",
     isPreemptive: true,
     canTellTheFuture: true,
+    config: {},
     initialState: () => ({}),
     scheduler: stcfScheduler,
   };

@@ -16,7 +16,7 @@ const programs: Program[] = [
   { id: 2, executionTime: 2, arrivalTime: 0 },
 ];
 
-const fifo = fifoPolicyFactory(1);
+const fifo = { ...fifoPolicyFactory(), id: 1 };
 const processes = runSimulations(programs, [fifo])[fifo.id];
 
 // Temporary until core provides a metrics function; values match the run above.

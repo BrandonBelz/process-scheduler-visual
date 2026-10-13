@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { calculateAllStatistics, runSimulations } from "./api";
+import { calculateAllStatistics, getPolicies, runSimulations } from "./api";
 import fifoPolicyFactory from "./schedulers/fifo";
 import sjfPolicyFactory from "./schedulers/sjf";
 import stcfPolicyFactory from "./schedulers/stcf";
 import { ProcessState } from "./types/processState";
 import type Program from "./types/program";
 import type Process from "./types/process";
-import type Policy from "./types/policy";
+import type { PolicyInstance } from "./types/policy";
 import type {
   StandardProcessDto,
   FutureTellingProcessDto,
@@ -54,16 +54,42 @@ function logSimulationTimeline(title: string, processes: Process[]): void {
 }
 
 describe("runSimulations", () => {
+  it("should run frontend-configured policy instances by unique ID", () => {
+    const policies = getPolicies();
+    const roundRobinPolicy = policies.find(
+      (policy) => policy.name === "Round Robin",
+    );
+    expect(roundRobinPolicy).toBeDefined();
+
+    const roundRobinInstance: PolicyInstance = {
+      ...roundRobinPolicy!,
+      id: 42,
+      config: { timeSlice: 1 },
+    };
+    const results = runSimulations(
+      [
+        { id: 1, executionTime: 2, arrivalTime: 0 },
+        { id: 2, executionTime: 2, arrivalTime: 0 },
+      ],
+      [roundRobinInstance],
+    );
+
+    expect(results[42]).toBeDefined();
+    expect(results[42][0].stateHistory[0]).toBe(ProcessState.RUNNING);
+    expect(results[42][1].stateHistory[0]).toBe(ProcessState.READY);
+  });
+
   it("should supply StandardProcessDto with programId and currentState to policies where canTellTheFuture is false", () => {
     const receivedSnapshots: StandardProcessDto[][] = [];
 
-    const testStandardPolicy: Policy<void> = {
+    const testStandardPolicy: PolicyInstance<void> = {
       id: 99,
       name: "TestStandard",
       description: "Inspects StandardProcessDto snapshots",
       isPreemptive: false,
       canTellTheFuture: false,
       initialState: () => undefined,
+      config: {},
       scheduler: (processes, state) => {
         receivedSnapshots.push([...processes]);
         return {
@@ -105,9 +131,12 @@ describe("runSimulations", () => {
       { id: 2, executionTime: 1, arrivalTime: 1 },
     ];
 
-    const stcfPolicy = stcfPolicyFactory(5);
+    const stcfPolicy: PolicyInstance<object> = {
+      ...stcfPolicyFactory(),
+      id: 5,
+    };
     const results = runSimulations(programs, [stcfPolicy]);
-    const [p1, p2] = results[stcfPolicy.id];
+      const [p1, p2] = results[stcfPolicy.id];
 
     expect(p1.stateHistory).toEqual([
       ProcessState.RUNNING,
@@ -135,14 +164,15 @@ describe("runSimulations", () => {
       processes: FutureTellingProcessDto[];
     }[] = [];
 
-    const testFuturePolicy: Policy<void> = {
+    const testFuturePolicy: PolicyInstance<void> = {
       id: 100,
       name: "TestFuture",
       description: "Inspects FutureTellingProcessDto snapshots",
       isPreemptive: false,
       canTellTheFuture: true,
       initialState: () => undefined,
-      scheduler: (processes, state, context) => {
+      config: {},
+      scheduler: (processes, state, _config, context) => {
         recordedTicks.push({
           tick: context.tick,
           processes: processes.map((p) => ({ ...p })),
@@ -225,12 +255,13 @@ describe("runSimulations", () => {
   it("should set remainingBurstTime to remainingExecutionTime when the job finishes before the next I/O interval", () => {
     let recordedSnapshot: FutureTellingProcessDto | undefined;
 
-    const testFuturePolicy: Policy<void> = {
+    const testFuturePolicy: PolicyInstance<void> = {
       id: 101,
       name: "TestFuturePrecedence",
       description: "Checks burst calculation when executionTime < interval",
       isPreemptive: false,
       canTellTheFuture: true,
+      config: {},
       initialState: () => undefined,
       scheduler: (processes, state) => {
         if (!recordedSnapshot) {
@@ -266,7 +297,10 @@ describe("runSimulations", () => {
       { id: 3, executionTime: 1, arrivalTime: 5 },
     ];
 
-    const fifoPolicy = fifoPolicyFactory(1);
+    const fifoPolicy: PolicyInstance = {
+      ...fifoPolicyFactory(),
+      id: 1,
+    };
     const results = runSimulations(programs, [fifoPolicy]);
     const policyResults = results[fifoPolicy.id];
 
@@ -442,7 +476,10 @@ describe("integration with FIFO", () => {
       },
     ];
 
-    const fifoPolicy = fifoPolicyFactory(1);
+    const fifoPolicy: PolicyInstance = {
+      ...fifoPolicyFactory(),
+      id: 1,
+    };
     const results = runSimulations(programs, [fifoPolicy]);
     const policyResults = results[fifoPolicy.id];
 
@@ -468,7 +505,10 @@ describe("integration with FIFO", () => {
       { id: 2, executionTime: 3, arrivalTime: 0 },
     ];
 
-    const fifoPolicy = fifoPolicyFactory(1);
+    const fifoPolicy: PolicyInstance = {
+      ...fifoPolicyFactory(),
+      id: 1,
+    };
     const results = runSimulations(programs, [fifoPolicy]);
     const policyResults = results[fifoPolicy.id];
 
@@ -519,7 +559,10 @@ describe("integration with FIFO", () => {
       },
     ];
 
-    const fifoPolicy = fifoPolicyFactory(1);
+    const fifoPolicy: PolicyInstance = {
+      ...fifoPolicyFactory(),
+      id: 1,
+    };
     const results = runSimulations(programs, [fifoPolicy]);
     const policyResults = results[fifoPolicy.id];
 
@@ -563,7 +606,10 @@ describe("integration with FIFO", () => {
       },
     ];
 
-    const fifoPolicy = fifoPolicyFactory(1);
+    const fifoPolicy: PolicyInstance = {
+      ...fifoPolicyFactory(),
+      id: 1,
+    };
     const results = runSimulations(programs, [fifoPolicy]);
     const policyResults = results[fifoPolicy.id];
 
@@ -582,7 +628,10 @@ describe("integration with FIFO", () => {
   });
 
   it("should gracefully handle empty program list", () => {
-    const fifoPolicy = fifoPolicyFactory(1);
+    const fifoPolicy: PolicyInstance = {
+      ...fifoPolicyFactory(),
+      id: 1,
+    };
     const results = runSimulations([], [fifoPolicy]);
     const policyResults = results[fifoPolicy.id];
 
@@ -593,8 +642,10 @@ describe("integration with FIFO", () => {
   });
 
   it("should create a FIFO policy with the specified id and expected properties", () => {
-    const fifoPolicy = fifoPolicyFactory(42);
-    expect(fifoPolicy.id).toBe(42);
+    const fifoPolicy: PolicyInstance = {
+      ...fifoPolicyFactory(),
+      id: 42,
+    };
     expect(fifoPolicy.name).toBe("FIFO");
     expect(fifoPolicy.isPreemptive).toBe(false);
     expect(fifoPolicy.canTellTheFuture).toBe(false);
@@ -602,9 +653,9 @@ describe("integration with FIFO", () => {
 
     const programs: Program[] = [{ id: 1, executionTime: 1, arrivalTime: 0 }];
     const results = runSimulations(programs, [fifoPolicy]);
-    logSimulationTimeline("FIFO Policy Factory Integration", results[42]);
-    expect(results[42]).toBeDefined();
-    expect(results[42]).toHaveLength(1);
+    logSimulationTimeline("FIFO Policy Factory Integration", results[fifoPolicy.id]);
+    expect(results[fifoPolicy.id]).toBeDefined();
+    expect(results[fifoPolicy.id]).toHaveLength(1);
   });
 });
 
@@ -615,7 +666,10 @@ describe("integration with SJF", () => {
       { id: 2, executionTime: 3, arrivalTime: 0 },
     ];
 
-    const sjfPolicy = sjfPolicyFactory(2);
+    const sjfPolicy: PolicyInstance = {
+      ...sjfPolicyFactory(),
+      id: 2,
+    };
     const results = runSimulations(programs, [sjfPolicy]);
     logSimulationTimeline(
       "CPU-Only Shortest Job First (SJF)",
@@ -654,7 +708,10 @@ describe("integration with SJF", () => {
       { id: 2, executionTime: 3, arrivalTime: 0 },
     ];
 
-    const sjfPolicy = sjfPolicyFactory(3);
+    const sjfPolicy: PolicyInstance = {
+      ...sjfPolicyFactory(),
+      id: 3,
+    };
     const results = runSimulations(programs, [sjfPolicy]);
     logSimulationTimeline(
       "I/O-Aware Shortest Job First (SJF)",
@@ -680,8 +737,10 @@ describe("integration with SJF", () => {
 
 describe("integration with STCF", () => {
   it("should create an STCF policy with the expected properties and select the shortest burst", () => {
-    const stcfPolicy = stcfPolicyFactory(4);
-    expect(stcfPolicy.id).toBe(4);
+    const stcfPolicy: PolicyInstance = {
+      ...stcfPolicyFactory(),
+      id: 4,
+    };
     expect(stcfPolicy.name).toBe("STCF");
     expect(stcfPolicy.isPreemptive).toBe(true);
     expect(stcfPolicy.canTellTheFuture).toBe(true);

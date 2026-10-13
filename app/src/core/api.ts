@@ -1,4 +1,5 @@
 import type Policy from "./types/policy";
+import type { PolicyInstance } from "./types/policy";
 import type { SchedulerContext } from "./types/policy";
 import type Program from "./types/program";
 import type Process from "./types/process";
@@ -10,6 +11,7 @@ import type {
 import fifoPolicyFactory from "./schedulers/fifo";
 import sjfPolicyFactory from "./schedulers/sjf";
 import stcfPolicyFactory from "./schedulers/stcf";
+import roundRobinPolicyFactory from "./schedulers/roundRobin";
 import type { Statistic, StatisticResult } from "./types/statistic";
 
 interface ProcessSimulationState {
@@ -93,7 +95,7 @@ interface SelectionResult<TState> {
 
 // Selects the next process, invoking the policy scheduler and enforcing non-preemptive execution.
 function selectProcessIndex<TState>(
-  policy: Policy<TState>,
+  policy: PolicyInstance<TState>,
   state: SimulationState,
   readyIndices: number[],
   policyState: TState,
@@ -128,6 +130,7 @@ function selectProcessIndex<TState>(
           createFutureTellingProcessDto(state.processes[index]),
         ),
         policyState,
+          policy.config,
         context,
       )
     : policy.scheduler(
@@ -135,6 +138,7 @@ function selectProcessIndex<TState>(
           createStandardProcessDto(state.processes[index]),
         ),
         policyState,
+          policy.config,
         context,
       );
 
@@ -148,7 +152,7 @@ function selectProcessIndex<TState>(
     );
     if (readyMatchIndex === undefined) {
       throw new RangeError(
-        `Policy ${policy.id} selected an invalid or unready program ID: ${targetProgramId}`,
+        `Policy ${policy.name} selected an invalid or unready program ID: ${targetProgramId}`,
       );
     }
     selectedIndex = readyMatchIndex;
@@ -225,7 +229,7 @@ function isSimulationComplete(state: SimulationState): boolean {
 // Runs every program once under each policy and returns the resulting histories.
 export function runSimulations(
   programs: Program[],
-  policies: Policy[],
+  policies: PolicyInstance[],
 ): Record<number, Process[]> {
   return Object.fromEntries(
     policies.map((policy) => {
@@ -320,5 +324,10 @@ export function calculateAllStatistics(
 }
 
 export function getPolicies(): Policy[] {
-  return [fifoPolicyFactory(0), sjfPolicyFactory(1), stcfPolicyFactory(2)];
+  return [
+    fifoPolicyFactory(),
+    sjfPolicyFactory(),
+    stcfPolicyFactory(),
+    roundRobinPolicyFactory({ timeSlice: 2 }),
+  ];
 }
