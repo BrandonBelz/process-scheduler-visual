@@ -17,7 +17,7 @@ const programs: Program[] = [
 ];
 
 const fifo = { ...fifoPolicyFactory(), id: 1 };
-const processes = runSimulations(programs, [fifo])[fifo.id];
+const simulationResults = runSimulations(programs, [fifo]);
 const statistics = calculateAllStatistics(simulationResults);
 
 function App() {
