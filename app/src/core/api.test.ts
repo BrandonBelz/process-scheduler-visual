@@ -136,7 +136,7 @@ describe("runSimulations", () => {
       id: 5,
     };
     const results = runSimulations(programs, [stcfPolicy]);
-      const [p1, p2] = results[stcfPolicy.id];
+    const [p1, p2] = results[stcfPolicy.id];
 
     expect(p1.stateHistory).toEqual([
       ProcessState.RUNNING,
@@ -653,7 +653,10 @@ describe("integration with FIFO", () => {
 
     const programs: Program[] = [{ id: 1, executionTime: 1, arrivalTime: 0 }];
     const results = runSimulations(programs, [fifoPolicy]);
-    logSimulationTimeline("FIFO Policy Factory Integration", results[fifoPolicy.id]);
+    logSimulationTimeline(
+      "FIFO Policy Factory Integration",
+      results[fifoPolicy.id],
+    );
     expect(results[fifoPolicy.id]).toBeDefined();
     expect(results[fifoPolicy.id]).toHaveLength(1);
   });

@@ -130,7 +130,7 @@ function selectProcessIndex<TState>(
           createFutureTellingProcessDto(state.processes[index]),
         ),
         policyState,
-          policy.config,
+        policy.config,
         context,
       )
     : policy.scheduler(
@@ -138,7 +138,7 @@ function selectProcessIndex<TState>(
           createStandardProcessDto(state.processes[index]),
         ),
         policyState,
-          policy.config,
+        policy.config,
         context,
       );
 
