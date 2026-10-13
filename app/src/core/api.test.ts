@@ -80,89 +80,6 @@ describe("runSimulations", () => {
     expect(results[42][1].stateHistory[0]).toBe(ProcessState.READY);
   });
 
-  it("should rotate processes after each round robin time slice", () => {
-    const programs: Program[] = [
-      { id: 1, executionTime: 5, arrivalTime: 0 },
-      { id: 2, executionTime: 3, arrivalTime: 0 },
-    ];
-    const roundRobinPolicy: PolicyInstance = {
-      ...roundRobinPolicyFactory({ timeSlice: 2 }),
-      id: 43,
-    };
-
-    const results = runSimulations(programs, [roundRobinPolicy]);
-    const policyResults = results[roundRobinPolicy.id];
-    const [process1, process2] = policyResults;
-
-    logSimulationTimeline("Round Robin Execution", policyResults);
-
-    expect(process1.stateHistory).toEqual([
-      ProcessState.RUNNING,
-      ProcessState.RUNNING,
-      ProcessState.READY,
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.RUNNING,
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.COMPLETED,
-    ]);
-    expect(process2.stateHistory).toEqual([
-      ProcessState.READY,
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.RUNNING,
-      ProcessState.READY,
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.COMPLETED,
-      ProcessState.COMPLETED,
-    ]);
-  });
-
-  it("should rotate processes every tick with a one-tick time slice", () => {
-    const programs: Program[] = [
-      { id: 1, executionTime: 5, arrivalTime: 0 },
-      { id: 2, executionTime: 3, arrivalTime: 0 },
-    ];
-    const roundRobinPolicy: PolicyInstance = {
-      ...roundRobinPolicyFactory({ timeSlice: 1 }),
-      id: 44,
-    };
-
-    const results = runSimulations(programs, [roundRobinPolicy]);
-    const policyResults = results[roundRobinPolicy.id];
-    const [process1, process2] = policyResults;
-
-    logSimulationTimeline(
-      "Round Robin Execution (One-Tick Slice)",
-      policyResults,
-    );
-
-    expect(process1.stateHistory).toEqual([
-      ProcessState.RUNNING,
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.RUNNING,
-      ProcessState.COMPLETED,
-    ]);
-    expect(process2.stateHistory).toEqual([
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.READY,
-      ProcessState.RUNNING,
-      ProcessState.COMPLETED,
-      ProcessState.COMPLETED,
-      ProcessState.COMPLETED,
-    ]);
-  });
-
   it("should supply StandardProcessDto with programId and currentState to policies where canTellTheFuture is false", () => {
     const receivedSnapshots: StandardProcessDto[][] = [];
 
@@ -547,6 +464,91 @@ describe("calculateAllStatistics", () => {
         },
       ],
     });
+  });
+});
+
+describe("integration with Round Robin", () => {
+  it("should rotate processes after each round robin time slice", () => {
+    const programs: Program[] = [
+      { id: 1, executionTime: 5, arrivalTime: 0 },
+      { id: 2, executionTime: 3, arrivalTime: 0 },
+    ];
+    const roundRobinPolicy: PolicyInstance = {
+      ...roundRobinPolicyFactory({ timeSlice: 2 }),
+      id: 43,
+    };
+
+    const results = runSimulations(programs, [roundRobinPolicy]);
+    const policyResults = results[roundRobinPolicy.id];
+    const [process1, process2] = policyResults;
+
+    logSimulationTimeline("Round Robin Execution", policyResults);
+
+    expect(process1.stateHistory).toEqual([
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+    ]);
+    expect(process2.stateHistory).toEqual([
+      ProcessState.READY,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+    ]);
+  });
+
+  it("should rotate processes every tick with a one-tick time slice", () => {
+    const programs: Program[] = [
+      { id: 1, executionTime: 5, arrivalTime: 0 },
+      { id: 2, executionTime: 3, arrivalTime: 0 },
+    ];
+    const roundRobinPolicy: PolicyInstance = {
+      ...roundRobinPolicyFactory({ timeSlice: 1 }),
+      id: 44,
+    };
+
+    const results = runSimulations(programs, [roundRobinPolicy]);
+    const policyResults = results[roundRobinPolicy.id];
+    const [process1, process2] = policyResults;
+
+    logSimulationTimeline(
+      "Round Robin Execution (One-Tick Slice)",
+      policyResults,
+    );
+
+    expect(process1.stateHistory).toEqual([
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+    ]);
+    expect(process2.stateHistory).toEqual([
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+      ProcessState.COMPLETED,
+    ]);
   });
 });
 
