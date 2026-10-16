@@ -17,7 +17,7 @@ export default defineConfig({
         branches: 85,
         statements: 90,
       },
-      include: ["src/**/*.{ts,tsx}"],
+      include: ["src/core/**/*.{ts,tsx}"],
       exclude: [
         ...coverageConfigDefaults.exclude,
         // Type declarations

@@ -13,6 +13,7 @@ function initialFifoState(): FifoState {
 function fifo_scheduler(
   processes: readonly StandardProcessDto[],
   state: FifoState,
+  _config: object,
   context: SchedulerContext,
 ): SchedulerDecision<FifoState> {
   processes.forEach((process) => {
@@ -39,14 +40,14 @@ function fifo_scheduler(
   };
 }
 
-export default function fifoPolicyFactory(id: number): Policy<FifoState> {
+export default function fifoPolicyFactory(): Policy<FifoState> {
   return {
-    id,
     name: "FIFO",
     description:
       "First In, First Out (FIFO) is the most basic algorithm. It runs processes to completion in the order that they arrive.",
     isPreemptive: false,
     canTellTheFuture: false,
+    config: {},
     initialState: initialFifoState,
     scheduler: fifo_scheduler,
   };

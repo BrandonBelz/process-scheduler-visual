@@ -5,6 +5,7 @@ import type { FutureTellingProcessDto } from "../types/processDto";
 function sjfScheduler(
   processes: readonly FutureTellingProcessDto[],
   _state: object,
+  _config: object,
   context: SchedulerContext,
 ): SchedulerDecision<object> {
   if (processes.length == 0) throw RangeError("Process list cannot be empty.");
@@ -19,14 +20,14 @@ function sjfScheduler(
   return { selectedProgramId: shortest.programId, nextState: {} };
 }
 
-export default function sjfPolicyFactory(id: number): Policy<object> {
+export default function sjfPolicyFactory(): Policy<object> {
   return {
-    id,
     name: "SJF",
     description:
       "Shortest Job First (SJF), as its name suggests, runs the shortest job first. It relies on knowing how long each process must run, which is unrealistic.",
     isPreemptive: false,
     canTellTheFuture: true,
+    config: {},
     initialState: () => ({}),
     scheduler: sjfScheduler,
   };
