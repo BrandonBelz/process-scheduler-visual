@@ -91,6 +91,7 @@ describe("runSimulations", () => {
       canTellTheFuture: false,
       initialState: () => undefined,
       config: {},
+      getConfigFields: () => [],
       scheduler: (processes, state) => {
         receivedSnapshots.push([...processes]);
         return {
@@ -173,6 +174,7 @@ describe("runSimulations", () => {
       canTellTheFuture: true,
       initialState: () => undefined,
       config: {},
+      getConfigFields: () => [],
       scheduler: (processes, state, _config, context) => {
         recordedTicks.push({
           tick: context.tick,
@@ -263,6 +265,7 @@ describe("runSimulations", () => {
       isPreemptive: false,
       canTellTheFuture: true,
       config: {},
+      getConfigFields: () => [],
       initialState: () => undefined,
       scheduler: (processes, state) => {
         if (!recordedSnapshot) {

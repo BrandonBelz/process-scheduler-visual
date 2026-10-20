@@ -17,6 +17,8 @@ interface BasePolicy<TState = any, TConfig = any> {
   description: string;
   isPreemptive: boolean;
   config: TConfig;
+  /** Names of the user-editable config fields; empty when there are none. */
+  getConfigFields: () => string[];
   initialState: () => TState;
 }
 
