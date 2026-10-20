@@ -328,6 +328,18 @@ export function getPolicies(): Policy[] {
     fifoPolicyFactory(),
     sjfPolicyFactory(),
     stcfPolicyFactory(),
-    roundRobinPolicyFactory({ timeSlice: 2 }),
+    roundRobinPolicyFactory(),
   ];
+}
+
+export function makePolicyInstance<TState, TConfig>(
+  policy: Policy<TState, TConfig>,
+  id: number,
+  config: TConfig = policy.config,
+): PolicyInstance<TState, TConfig> {
+  return {
+    ...policy,
+    id,
+    config,
+  };
 }
