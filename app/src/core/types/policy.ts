@@ -64,6 +64,7 @@ export type PolicyInstance<TState = any, TConfig = any> =
   | StandardPolicyInstance<TState, TConfig>
   | FutureTellingPolicyInstance<TState, TConfig>;
 
-export type Policy<TState = any> =
-  StandardPolicy<TState> | FutureTellingPolicy<TState>;
+export type Policy<TState = any, TConfig = any> =
+  | StandardPolicy<TState, TConfig>
+  | FutureTellingPolicy<TState, TConfig>;
 export type { Policy as default };

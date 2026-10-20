@@ -84,7 +84,7 @@ function roundRobinScheduler(
 }
 
 export default function roundRobinPolicyFactory(
-  config: RoundRobinConfig,
+  config: RoundRobinConfig = { timeSlice: 1 },
 ): Policy<RoundRobinState> {
   return {
     name: "Round Robin",
