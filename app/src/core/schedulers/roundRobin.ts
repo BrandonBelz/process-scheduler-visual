@@ -84,7 +84,8 @@ function roundRobinScheduler(
 }
 
 export default function roundRobinPolicyFactory(
-  config: RoundRobinConfig = { timeSlice: 1 },
+  // FR-022: Round Robin defaults to a two-cycle time slice.
+  config: RoundRobinConfig = { timeSlice: 2 },
 ): Policy<RoundRobinState> {
   return {
     name: "Round Robin",
@@ -93,6 +94,7 @@ export default function roundRobinPolicyFactory(
     isPreemptive: true,
     canTellTheFuture: false,
     config: config,
+    getConfigFields: () => ["timeSlice"],
     initialState: initialRoundRobinState,
     scheduler: roundRobinScheduler,
   };

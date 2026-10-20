@@ -1,32 +1,77 @@
-import { calculateAllStatistics, runSimulations } from "./core/api";
-import fifoPolicyFactory from "./core/schedulers/fifo";
-import type Program from "./core/types/program";
-import ProcessTimeline from "./components/ProcessTimeline";
-import ResultsTable from "./components/ResultsTable";
+import { useEffect, useState } from "react";
+import {
+  calculateAllStatistics,
+  makePolicyInstance,
+  runSimulations,
+} from "./core/api";
+import { validateWorkload } from "./core/validation";
+import ConfigurationView from "./views/ConfigurationView";
+import SimulationView, { type SimulationRun } from "./views/SimulationView";
+import {
+  createDefaultWorkload,
+  describePolicy,
+  findPolicy,
+  toWorkloadInput,
+  type WorkloadDraft,
+} from "./workloadDraft";
 import "./App.css";
 
-const programs: Program[] = [
-  { id: 0, executionTime: 3, arrivalTime: 0 },
-  {
-    id: 1,
-    executionTime: 4,
-    arrivalTime: 0,
-    ioSetting: { interval: 2, length: 2 },
-  },
-  { id: 2, executionTime: 2, arrivalTime: 0 },
-];
-
-const fifo = { ...fifoPolicyFactory(), id: 1 };
-const simulationResults = runSimulations(programs, [fifo]);
-const statistics = calculateAllStatistics(simulationResults);
-
 function App() {
+  const [workload, setWorkload] = useState<WorkloadDraft>(
+    createDefaultWorkload,
+  );
+  const [run, setRun] = useState<SimulationRun>();
+  const [runError, setRunError] = useState<string>();
+
+  const validation = validateWorkload(toWorkloadInput(workload));
+
+  // Each view opens at the top of the page.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [run]);
+
+  // Recomputes from the current configuration every time the simulation opens (FR-005).
+  function handleRun() {
+    if (!validation.valid) return;
+
+    const policy = findPolicy(workload.policyName);
+    const config = { ...policy.config, ...validation.policyConfig };
+    const instance = makePolicyInstance(policy, 0, config);
+
+    try {
+      const results = runSimulations(validation.programs, [instance]);
+      const statistics = calculateAllStatistics(results);
+      setRun({
+        title: describePolicy(policy, config),
+        policy,
+        processes: results[instance.id],
+        statistics: statistics[instance.id],
+      });
+      setRunError(undefined);
+    } catch (error) {
+      setRunError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  // An earlier failure no longer describes the workload once it is edited.
+  function handleChange(nextWorkload: WorkloadDraft) {
+    setWorkload(nextWorkload);
+    setRunError(undefined);
+  }
+
   return (
     <main className="app">
-      <h1>{fifo.name}</h1>
-      <ProcessTimeline processes={simulationResults[fifo.id]} />
-      <h2>Results</h2>
-      <ResultsTable statistics={statistics[fifo.id]} />
+      {run ? (
+        <SimulationView run={run} onBack={() => setRun(undefined)} />
+      ) : (
+        <ConfigurationView
+          workload={workload}
+          errors={validation.valid ? undefined : validation.errors}
+          runError={runError}
+          onChange={handleChange}
+          onRun={handleRun}
+        />
+      )}
     </main>
   );
 }

@@ -1,0 +1,21 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+
+  input {
+    width: 6rem;
+  }
+}
+
+.range {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.error {
+  max-width: 12rem;
+  color: var(--error);
+  font-size: 13px;
+}
