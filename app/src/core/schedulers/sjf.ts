@@ -28,7 +28,7 @@ export default function sjfPolicyFactory(): Policy<object> {
     isPreemptive: false,
     canTellTheFuture: true,
     config: {},
-    initialState: () => ({}),
+    initialState: (_config: object) => ({}),
     scheduler: sjfScheduler,
   };
 }

@@ -26,7 +26,7 @@ export default function stcfPolicyFactory(): Policy<object> {
     isPreemptive: true,
     canTellTheFuture: true,
     config: {},
-    initialState: () => ({}),
+    initialState: (_config: object) => ({}),
     scheduler: stcfScheduler,
   };
 }

@@ -17,7 +17,7 @@ interface BasePolicy<TState = any, TConfig = any> {
   description: string;
   isPreemptive: boolean;
   config: TConfig;
-  initialState: () => TState;
+  initialState: (config: TConfig) => TState;
 }
 
 export interface StandardPolicy<TState = any, TConfig = any> extends BasePolicy<
