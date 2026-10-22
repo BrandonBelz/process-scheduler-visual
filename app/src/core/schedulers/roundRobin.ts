@@ -2,18 +2,18 @@ import type Policy from "../types/policy";
 import type { SchedulerContext, SchedulerDecision } from "../types/policy";
 import type { StandardProcessDto } from "../types/processDto";
 
-interface RoundRobinState {
+export interface RoundRobinState {
   queue: number[];
   lastRunningId?: number;
   // Number of ticks already assigned to the current process in its quantum.
   runLength: number;
 }
 
-function initialRoundRobinState(): RoundRobinState {
+function initialRoundRobinState(_config: RoundRobinConfig): RoundRobinState {
   return { queue: [], lastRunningId: -1, runLength: 0 };
 }
 
-interface RoundRobinConfig {
+export interface RoundRobinConfig {
   timeSlice: number;
 }
 
@@ -85,7 +85,7 @@ function roundRobinScheduler(
 
 export default function roundRobinPolicyFactory(
   config: RoundRobinConfig = { timeSlice: 1 },
-): Policy<RoundRobinState> {
+): Policy<RoundRobinState, RoundRobinConfig> {
   return {
     name: "Round Robin",
     description:

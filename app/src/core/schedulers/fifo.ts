@@ -6,7 +6,7 @@ interface FifoState {
   queue: number[];
 }
 
-function initialFifoState(): FifoState {
+function initialFifoState(_config: object): FifoState {
   return { queue: [] };
 }
 
