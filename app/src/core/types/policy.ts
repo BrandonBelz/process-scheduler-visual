@@ -19,7 +19,7 @@ interface BasePolicy<TState = any, TConfig = any> {
   config: TConfig;
   /** Names of the user-editable config fields; empty when there are none. */
   getConfigFields: () => string[];
-  initialState: () => TState;
+  initialState: (config: TConfig) => TState;
 }
 
 export interface StandardPolicy<TState = any, TConfig = any> extends BasePolicy<

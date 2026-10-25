@@ -29,7 +29,7 @@ export default function sjfPolicyFactory(): Policy<object> {
     canTellTheFuture: true,
     config: {},
     getConfigFields: () => [],
-    initialState: () => ({}),
+    initialState: (_config: object) => ({}),
     scheduler: sjfScheduler,
   };
 }
