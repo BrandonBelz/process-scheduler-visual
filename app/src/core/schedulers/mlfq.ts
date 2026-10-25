@@ -199,6 +199,7 @@ export default function mlfqPolicyFactory(
     isPreemptive: true,
     canTellTheFuture: false,
     config: config,
+    getConfigFields: () => ["numberOfQueues", "timeSlice", "allotmentPerProcess", "priorityBoostInterval"],
     initialState: initialMLFQState,
     scheduler: mlfqScheduler,
   };
