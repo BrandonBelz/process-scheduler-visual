@@ -234,7 +234,7 @@ export function runSimulations(
   return Object.fromEntries(
     policies.map((policy) => {
       const state = createSimulationState(programs);
-      let policyState = policy.initialState();
+      let policyState = policy.initialState(policy.config);
       let tick = 0;
 
       while (!isSimulationComplete(state)) {

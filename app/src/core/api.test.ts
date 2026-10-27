@@ -7,6 +7,7 @@ import {
   runSimulations,
 } from "./api";
 import fifoPolicyFactory from "./schedulers/fifo";
+import mlfqPolicyFactory from "./schedulers/mlfq";
 import roundRobinPolicyFactory from "./schedulers/roundRobin";
 import sjfPolicyFactory from "./schedulers/sjf";
 import stcfPolicyFactory from "./schedulers/stcf";
@@ -744,7 +745,7 @@ describe("integration with FIFO", () => {
     expect(fifoPolicy.name).toBe("FIFO");
     expect(fifoPolicy.isPreemptive).toBe(false);
     expect(fifoPolicy.canTellTheFuture).toBe(false);
-    expect(fifoPolicy.initialState()).toEqual({ queue: [] });
+    expect(fifoPolicy.initialState(fifoPolicy.config)).toEqual({ queue: [] });
 
     const programs: Program[] = [{ id: 1, executionTime: 1, arrivalTime: 0 }];
     const results = runSimulations(programs, [fifoPolicy]);
@@ -842,7 +843,7 @@ describe("integration with STCF", () => {
     expect(stcfPolicy.name).toBe("STCF");
     expect(stcfPolicy.isPreemptive).toBe(true);
     expect(stcfPolicy.canTellTheFuture).toBe(true);
-    expect(stcfPolicy.initialState()).toEqual({});
+    expect(stcfPolicy.initialState(stcfPolicy.config)).toEqual({});
 
     const programs: Program[] = [
       { id: 1, executionTime: 5, arrivalTime: 0 },
@@ -895,5 +896,126 @@ describe("describePolicy", () => {
 
   it("should use the bare name for a policy without config fields", () => {
     expect(describePolicy(fifoPolicyFactory(), {})).toBe("FIFO");
+  });
+});
+
+describe("integration with MLFQ", () => {
+  it("should demote processes after their configured allotment", () => {
+    const policy: PolicyInstance = {
+      ...mlfqPolicyFactory({
+        numberOfQueues: 2,
+        timeSlice: 1,
+        allotmentPerProcess: 2,
+      }),
+      id: 5,
+    };
+
+    const results = runSimulations(
+      [
+        { id: 1, executionTime: 4, arrivalTime: 0 },
+        { id: 2, executionTime: 4, arrivalTime: 0 },
+      ],
+      [policy],
+    );
+    const [process1, process2] = results[policy.id];
+    logSimulationTimeline("MLFQ Allotment Demotion", results[policy.id]);
+
+    expect(process1.stateHistory.slice(0, 4)).toEqual([
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+    ]);
+    expect(process2.stateHistory.slice(0, 4)).toEqual([
+      ProcessState.READY,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+      ProcessState.RUNNING,
+    ]);
+  });
+
+  it("should place arrivals in the highest-priority queue", () => {
+    const policy: PolicyInstance = {
+      ...mlfqPolicyFactory({
+        numberOfQueues: 2,
+        timeSlice: 1,
+        allotmentPerProcess: 2,
+      }),
+      id: 6,
+    };
+
+    const results = runSimulations(
+      [
+        { id: 1, executionTime: 4, arrivalTime: 0 },
+        { id: 2, executionTime: 1, arrivalTime: 2 },
+      ],
+      [policy],
+    );
+    const [process1, process2] = results[policy.id];
+    logSimulationTimeline("MLFQ High-Priority Arrival", results[policy.id]);
+
+    expect(process1.stateHistory.slice(0, 3)).toEqual([
+      ProcessState.RUNNING,
+      ProcessState.RUNNING,
+      ProcessState.READY,
+    ]);
+    expect(process2.stateHistory[2]).toBe(ProcessState.RUNNING);
+  });
+
+  it("should retain priority across an I/O block and re-entry", () => {
+    const policy: PolicyInstance = {
+      ...mlfqPolicyFactory({
+        numberOfQueues: 2,
+        timeSlice: 1,
+        allotmentPerProcess: 3,
+      }),
+      id: 7,
+    };
+
+    const results = runSimulations(
+      [
+        {
+          id: 1,
+          executionTime: 3,
+          arrivalTime: 0,
+          ioSetting: { interval: 1, length: 1 },
+        },
+        { id: 2, executionTime: 2, arrivalTime: 0 },
+      ],
+      [policy],
+    );
+    const [process1] = results[policy.id];
+    logSimulationTimeline("MLFQ I/O Re-entry", results[policy.id]);
+
+    expect(process1.stateHistory[0]).toBe(ProcessState.RUNNING);
+    expect(process1.stateHistory[1]).toBe(ProcessState.BLOCKED);
+    expect(process1.stateHistory[2]).toBe(ProcessState.RUNNING);
+  });
+
+  it("should boost known processes without resetting queue rotation state", () => {
+    const policy: PolicyInstance = {
+      ...mlfqPolicyFactory({
+        numberOfQueues: 2,
+        timeSlice: 1,
+        allotmentPerProcess: 1,
+        priorityBoostInterval: 3,
+      }),
+      id: 8,
+    };
+
+    const results = runSimulations(
+      [
+        { id: 1, executionTime: 5, arrivalTime: 0 },
+        { id: 2, executionTime: 5, arrivalTime: 0 },
+      ],
+      [policy],
+    );
+    const [process1, process2] = results[policy.id];
+    logSimulationTimeline("MLFQ Priority Boost", results[policy.id]);
+
+    expect(process1.stateHistory[3]).toBe(ProcessState.RUNNING);
+    expect(process2.stateHistory[3]).toBe(ProcessState.READY);
+    expect(process1.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+    expect(process2.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
   });
 });
