@@ -84,7 +84,7 @@ function roundRobinScheduler(
 }
 
 export default function roundRobinPolicyFactory(
-  config: RoundRobinConfig = { timeSlice: 1 },
+  config: RoundRobinConfig = { timeSlice: 2 },
 ): Policy<RoundRobinState, RoundRobinConfig> {
   return {
     name: "Round Robin",
@@ -93,6 +93,9 @@ export default function roundRobinPolicyFactory(
     isPreemptive: true,
     canTellTheFuture: false,
     config: config,
+    getConfigFields: () => [
+      { key: "timeSlice", label: "Time slice", min: 1, max: 20 },
+    ],
     initialState: initialRoundRobinState,
     scheduler: roundRobinScheduler,
   };

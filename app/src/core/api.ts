@@ -13,6 +13,7 @@ import sjfPolicyFactory from "./schedulers/sjf";
 import stcfPolicyFactory from "./schedulers/stcf";
 import roundRobinPolicyFactory from "./schedulers/roundRobin";
 import type { Statistic, StatisticResult } from "./types/statistic";
+import mlfqPolicyFactory from "./schedulers/mlfq";
 
 interface ProcessSimulationState {
   process: Process;
@@ -329,7 +330,25 @@ export function getPolicies(): Policy[] {
     sjfPolicyFactory(),
     stcfPolicyFactory(),
     roundRobinPolicyFactory(),
+    mlfqPolicyFactory(),
   ];
+}
+
+export function getPolicy(name: string): Policy | undefined {
+  return getPolicies().find((policy) => policy.name === name);
+}
+
+// Names a policy with its settings, e.g. "Round Robin (Time slice: 2)".
+export function describePolicy(
+  policy: Policy,
+  config: Record<string, number>,
+): string {
+  const settings = policy
+    .getConfigFields()
+    .map(({ key, label }) => `${label}: ${config[key]}`);
+  return settings.length > 0
+    ? `${policy.name} (${settings.join(", ")})`
+    : policy.name;
 }
 
 export function makePolicyInstance<TState, TConfig>(
