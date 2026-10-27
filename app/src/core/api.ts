@@ -13,6 +13,7 @@ import sjfPolicyFactory from "./schedulers/sjf";
 import stcfPolicyFactory from "./schedulers/stcf";
 import roundRobinPolicyFactory from "./schedulers/roundRobin";
 import type { Statistic, StatisticResult } from "./types/statistic";
+import mlfqPolicyFactory from "./schedulers/mlfq";
 
 interface ProcessSimulationState {
   process: Process;
@@ -329,6 +330,7 @@ export function getPolicies(): Policy[] {
     sjfPolicyFactory(),
     stcfPolicyFactory(),
     roundRobinPolicyFactory(),
+    mlfqPolicyFactory(),
   ];
 }
 

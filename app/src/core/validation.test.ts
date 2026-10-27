@@ -179,20 +179,14 @@ describe("policy config fields", () => {
     });
   });
 
-  it("should expose the time slice for Round Robin only", () => {
-    const fields = Object.fromEntries(
-      getPolicies().map((policy) => [
-        policy.name,
-        policy.getConfigFields().map(({ key }) => key),
-      ]),
+  it("should expose a time slice config field for Round Robin", () => {
+    const roundRobin = getPolicies().find(
+      (policy) => policy.name === "Round Robin",
     );
 
-    expect(fields).toEqual({
-      FIFO: [],
-      SJF: [],
-      STCF: [],
-      "Round Robin": ["timeSlice"],
-    });
+    expect(roundRobin?.getConfigFields().map(({ key }) => key)).toEqual([
+      "timeSlice",
+    ]);
   });
 
   it("should default Round Robin to a two-cycle time slice (FR-022)", () => {

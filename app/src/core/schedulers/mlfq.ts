@@ -187,6 +187,9 @@ function mlfqScheduler(
 const defaultConfig: MLFQConfig = {
   numberOfQueues: 3,
   timeSlice: 2,
+  // Rest of the config fields will be optional in the future but the frontend needs to provide them for now.
+  allotmentPerProcess: 4,
+  priorityBoostInterval: 20,
 };
 
 export default function mlfqPolicyFactory(
