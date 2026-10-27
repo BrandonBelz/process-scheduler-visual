@@ -48,6 +48,7 @@ export default function fifoPolicyFactory(): Policy<FifoState> {
     isPreemptive: false,
     canTellTheFuture: false,
     config: {},
+    getConfigFields: () => [],
     initialState: initialFifoState,
     scheduler: fifo_scheduler,
   };

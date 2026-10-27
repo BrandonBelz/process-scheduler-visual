@@ -12,11 +12,23 @@ export interface SchedulerContext {
   runningProcessId?: number;
 }
 
+/** A user-editable whole-number setting in a policy's config. */
+export interface ConfigField {
+  /** Key of the setting in the policy's config. */
+  key: string;
+  /** Display name shown in the UI. */
+  label: string;
+  min: number;
+  max: number;
+}
+
 interface BasePolicy<TState = any, TConfig = any> {
   name: string;
   description: string;
   isPreemptive: boolean;
   config: TConfig;
+  /** The user-editable config fields; empty when there are none. */
+  getConfigFields: () => ConfigField[];
   initialState: (config: TConfig) => TState;
 }
 
