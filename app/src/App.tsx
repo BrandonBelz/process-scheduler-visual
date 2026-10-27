@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 import {
   calculateAllStatistics,
+  describePolicy,
   makePolicyInstance,
   runSimulations,
 } from "./core/api";
 import { validateWorkload } from "./core/validation";
-import ConfigurationView from "./views/ConfigurationView";
-import SimulationView, { type SimulationRun } from "./views/SimulationView";
 import {
   createDefaultWorkload,
-  describePolicy,
   findPolicy,
   toWorkloadInput,
   type WorkloadDraft,
-} from "./workloadDraft";
+} from "./utils/workloadDraft";
+import ConfigurationView from "./views/ConfigurationView";
+import SimulationView, { type SimulationRun } from "./views/SimulationView";
 import "./App.css";
 
 function App() {

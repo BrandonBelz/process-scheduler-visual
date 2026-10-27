@@ -14,8 +14,7 @@ in API order, joined by program ID. Calculation rules stay in core.
 
 - **Policy:** choose one policy from `getPolicies()` and show its description.
   Edit only the fields it lists through `getConfigFields()`; an empty list means
-  no settings. Field labels live in the frontend (`workloadDraft.ts`) and field
-  limits in core (`CONFIG_FIELD_LIMITS`). Build the run with
+  no settings. Each field carries its own label and limits. Build the run with
   `makePolicyInstance(policy, id, config)`.
 - **Programs:** 1–10 programs with CPU cycles (1–20), arrival time (0–20), and
   optional I/O interval and length (1–10 each). Users can add, reorder, and

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { calculateAllStatistics, getPolicies, runSimulations } from "./api";
+import {
+  calculateAllStatistics,
+  describePolicy,
+  getPolicies,
+  getPolicy,
+  runSimulations,
+} from "./api";
 import fifoPolicyFactory from "./schedulers/fifo";
 import roundRobinPolicyFactory from "./schedulers/roundRobin";
 import sjfPolicyFactory from "./schedulers/sjf";
@@ -867,5 +873,27 @@ describe("integration with STCF", () => {
     ).toHaveLength(3);
     expect(p1.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
     expect(p2.stateHistory.at(-1)).toBe(ProcessState.COMPLETED);
+  });
+});
+
+describe("getPolicy", () => {
+  it("should find a policy by name", () => {
+    expect(getPolicy("Round Robin")?.name).toBe("Round Robin");
+  });
+
+  it("should return undefined for an unknown name", () => {
+    expect(getPolicy("Lottery")).toBeUndefined();
+  });
+});
+
+describe("describePolicy", () => {
+  it("should list each config field with its label", () => {
+    expect(describePolicy(roundRobinPolicyFactory(), { timeSlice: 3 })).toBe(
+      "Round Robin (Time slice: 3)",
+    );
+  });
+
+  it("should use the bare name for a policy without config fields", () => {
+    expect(describePolicy(fifoPolicyFactory(), {})).toBe("FIFO");
   });
 });

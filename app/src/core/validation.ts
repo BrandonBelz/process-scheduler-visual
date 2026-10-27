@@ -1,3 +1,4 @@
+import type { ConfigField } from "./types/policy";
 import type Program from "./types/program";
 
 export interface NumberRange {
@@ -14,11 +15,6 @@ export const PROGRAM_FIELD_LIMITS = {
   ioLength: { min: 1, max: 10 },
 } satisfies Record<string, NumberRange>;
 
-// Limits for each field a policy reports through getConfigFields().
-export const CONFIG_FIELD_LIMITS: Record<string, NumberRange> = {
-  timeSlice: { min: 1, max: 20 },
-};
-
 /** Raw user input for one program; `io` is omitted when I/O is disabled. */
 export interface ProgramInput {
   executionTime: string;
@@ -32,6 +28,8 @@ export type ProgramErrors = Partial<Record<ProgramField, string>>;
 
 export interface WorkloadInput {
   programs: ProgramInput[];
+  /** The selected policy's fields, which `policyConfig` is checked against. */
+  configFields: ConfigField[];
   policyConfig: Record<string, string>;
 }
 
@@ -126,17 +124,13 @@ export function validateWorkload(input: WorkloadInput): WorkloadValidation {
   });
 
   const policyConfig: Record<string, number> = {};
-  Object.entries(input.policyConfig).forEach(([field, raw]) => {
-    const range = CONFIG_FIELD_LIMITS[field];
-    const parsed =
-      range === undefined
-        ? { error: `No limits are defined for "${field}".` }
-        : parseWholeNumber(raw, range);
+  input.configFields.forEach((field) => {
+    const parsed = parseWholeNumber(input.policyConfig[field.key] ?? "", field);
     if (parsed.error !== undefined) {
-      errors.policyConfig[field] = parsed.error;
+      errors.policyConfig[field.key] = parsed.error;
       hasErrors = true;
     } else {
-      policyConfig[field] = parsed.value!;
+      policyConfig[field.key] = parsed.value!;
     }
   });
 

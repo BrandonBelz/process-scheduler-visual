@@ -1,13 +1,8 @@
-import { getPolicies } from "./core/api";
-import type Policy from "./core/types/policy";
-import type { WorkloadInput } from "./core/validation";
+import { getPolicies, getPolicy } from "../core/api";
+import type Policy from "../core/types/policy";
+import type { WorkloadInput } from "../core/validation";
 
 export const POLICIES = getPolicies();
-
-// Display names for the fields policies report through getConfigFields().
-const CONFIG_FIELD_LABELS: Record<string, string> = {
-  timeSlice: "Time slice",
-};
 
 /** Editable form state for one program; numbers stay as text until validated. */
 export interface ProgramDraft {
@@ -42,8 +37,9 @@ export function createProgramDraft(
   };
 }
 
+// Falls back to the first policy so the form always has one selected.
 export function findPolicy(name: string): Policy {
-  return POLICIES.find((policy) => policy.name === name) ?? POLICIES[0];
+  return getPolicy(name) ?? POLICIES[0];
 }
 
 // Starts a policy's editable fields from its core defaults.
@@ -51,7 +47,7 @@ export function defaultPolicyConfig(policy: Policy): Record<string, string> {
   return Object.fromEntries(
     policy
       .getConfigFields()
-      .map((field) => [field, String(policy.config[field])]),
+      .map(({ key }) => [key, String(policy.config[key])]),
   );
 }
 
@@ -78,23 +74,7 @@ export function toWorkloadInput(draft: WorkloadDraft): WorkloadInput {
         ? { interval: program.ioInterval, length: program.ioLength }
         : undefined,
     })),
+    configFields: findPolicy(draft.policyName).getConfigFields(),
     policyConfig: draft.policyConfig,
   };
-}
-
-export function configFieldLabel(field: string): string {
-  return CONFIG_FIELD_LABELS[field] ?? field;
-}
-
-// Names a policy with its settings, e.g. "Round Robin (Time slice: 2)".
-export function describePolicy(
-  policy: Policy,
-  config: Record<string, number>,
-): string {
-  const settings = policy
-    .getConfigFields()
-    .map((field) => `${configFieldLabel(field)}: ${config[field]}`);
-  return settings.length > 0
-    ? `${policy.name} (${settings.join(", ")})`
-    : policy.name;
 }

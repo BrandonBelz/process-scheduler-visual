@@ -1,5 +1,5 @@
 import { PROGRAM_FIELD_LIMITS, type ProgramErrors } from "../core/validation";
-import type { ProgramDraft } from "../workloadDraft";
+import type { ProgramDraft } from "../utils/workloadDraft";
 import NumberField from "./NumberField";
 import styles from "./ProgramEditor.module.css";
 

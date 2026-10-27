@@ -1,13 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { getPolicies } from "./api";
+import type { ConfigField } from "./types/policy";
 import {
-  CONFIG_FIELD_LIMITS,
   parseWholeNumber,
   validateWorkload,
   type ProgramInput,
 } from "./validation";
 
 const validProgram: ProgramInput = { executionTime: "3", arrivalTime: "0" };
+const timeSliceField: ConfigField = {
+  key: "timeSlice",
+  label: "Time slice",
+  min: 1,
+  max: 20,
+};
 
 describe("parseWholeNumber", () => {
   const range = { min: 1, max: 20 };
@@ -58,6 +64,7 @@ describe("validateWorkload", () => {
           io: { interval: "2", length: "3" },
         },
       ],
+      configFields: [timeSliceField],
       policyConfig: { timeSlice: "2" },
     });
 
@@ -86,6 +93,7 @@ describe("validateWorkload", () => {
           io: { interval: "1.5", length: "" },
         },
       ],
+      configFields: [],
       policyConfig: {},
     });
 
@@ -109,6 +117,7 @@ describe("validateWorkload", () => {
   it("should ignore I/O fields when I/O is disabled", () => {
     const result = validateWorkload({
       programs: [validProgram],
+      configFields: [],
       policyConfig: {},
     });
 
@@ -117,13 +126,19 @@ describe("validateWorkload", () => {
   });
 
   it("should require between 1 and 10 programs", () => {
-    const empty = validateWorkload({ programs: [], policyConfig: {} });
+    const empty = validateWorkload({
+      programs: [],
+      configFields: [],
+      policyConfig: {},
+    });
     const tooMany = validateWorkload({
       programs: Array(11).fill(validProgram),
+      configFields: [],
       policyConfig: {},
     });
     const atLimit = validateWorkload({
       programs: Array(10).fill(validProgram),
+      configFields: [],
       policyConfig: {},
     });
 
@@ -135,35 +150,41 @@ describe("validateWorkload", () => {
     expect(atLimit.valid).toBe(true);
   });
 
-  it("should validate policy config fields against their limits", () => {
+  it("should validate the policy's config fields against their limits", () => {
+    const quantumField = { ...timeSliceField, key: "quantum" };
     const result = validateWorkload({
       programs: [validProgram],
-      policyConfig: { timeSlice: "21", unknownField: "1" },
+      configFields: [timeSliceField, quantumField],
+      policyConfig: { timeSlice: "21", unknownField: "x" },
     });
 
     expect(result.valid).toBe(false);
     if (!result.valid) {
       expect(result.errors.policyConfig).toEqual({
         timeSlice: "Must be between 1 and 20.",
-        unknownField: 'No limits are defined for "unknownField".',
+        quantum: "Required.",
       });
     }
   });
 });
 
 describe("policy config fields", () => {
-  it("should report only fields that exist in the policy config and have limits", () => {
+  it("should report only fields whose config defaults are within their limits", () => {
     getPolicies().forEach((policy) => {
-      policy.getConfigFields().forEach((field) => {
-        expect(policy.config).toHaveProperty(field);
-        expect(CONFIG_FIELD_LIMITS).toHaveProperty(field);
+      policy.getConfigFields().forEach(({ key, min, max }) => {
+        expect(policy.config).toHaveProperty(key);
+        expect(policy.config[key]).toBeGreaterThanOrEqual(min);
+        expect(policy.config[key]).toBeLessThanOrEqual(max);
       });
     });
   });
 
   it("should expose the time slice for Round Robin only", () => {
     const fields = Object.fromEntries(
-      getPolicies().map((policy) => [policy.name, policy.getConfigFields()]),
+      getPolicies().map((policy) => [
+        policy.name,
+        policy.getConfigFields().map(({ key }) => key),
+      ]),
     );
 
     expect(fields).toEqual({

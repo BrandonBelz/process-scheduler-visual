@@ -332,6 +332,23 @@ export function getPolicies(): Policy[] {
   ];
 }
 
+export function getPolicy(name: string): Policy | undefined {
+  return getPolicies().find((policy) => policy.name === name);
+}
+
+// Names a policy with its settings, e.g. "Round Robin (Time slice: 2)".
+export function describePolicy(
+  policy: Policy,
+  config: Record<string, number>,
+): string {
+  const settings = policy
+    .getConfigFields()
+    .map(({ key, label }) => `${label}: ${config[key]}`);
+  return settings.length > 0
+    ? `${policy.name} (${settings.join(", ")})`
+    : policy.name;
+}
+
 export function makePolicyInstance<TState, TConfig>(
   policy: Policy<TState, TConfig>,
   id: number,

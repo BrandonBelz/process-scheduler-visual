@@ -1,7 +1,5 @@
 import { useId } from "react";
 import type Policy from "../core/types/policy";
-import { CONFIG_FIELD_LIMITS } from "../core/validation";
-import { configFieldLabel } from "../workloadDraft";
 import NumberField from "./NumberField";
 import PolicyTags from "./PolicyTags";
 import styles from "./PolicySettings.module.css";
@@ -43,14 +41,14 @@ export default function PolicySettings({
             ))}
           </select>
         </div>
-        {policy.getConfigFields().map((field) => (
+        {policy.getConfigFields().map(({ key, label, min, max }) => (
           <NumberField
-            key={field}
-            label={configFieldLabel(field)}
-            value={config[field] ?? ""}
-            range={CONFIG_FIELD_LIMITS[field]}
-            error={errors[field]}
-            onChange={(value) => onConfigChange(field, value)}
+            key={key}
+            label={label}
+            value={config[key] ?? ""}
+            range={{ min, max }}
+            error={errors[key]}
+            onChange={(value) => onConfigChange(key, value)}
           />
         ))}
       </div>

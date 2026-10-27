@@ -94,7 +94,9 @@ export default function roundRobinPolicyFactory(
     isPreemptive: true,
     canTellTheFuture: false,
     config: config,
-    getConfigFields: () => ["timeSlice"],
+    getConfigFields: () => [
+      { key: "timeSlice", label: "Time slice", min: 1, max: 20 },
+    ],
     initialState: initialRoundRobinState,
     scheduler: roundRobinScheduler,
   };

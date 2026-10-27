@@ -8,7 +8,7 @@ import {
   findPolicy,
   type ProgramDraft,
   type WorkloadDraft,
-} from "../workloadDraft";
+} from "../utils/workloadDraft";
 import styles from "./ConfigurationView.module.css";
 
 interface ConfigurationViewProps {
