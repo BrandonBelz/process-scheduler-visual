@@ -17,6 +17,29 @@ interface MLFQState {
   lastRunningProcessId?: number;
 }
 
+function snapshotMlfqState(state: MLFQState): MLFQState {
+  return {
+    queues: state.queues.map(
+      (queue) =>
+        roundRobinPolicyFactory({ ...queue.config }) as StandardPolicy<
+          RoundRobinState,
+          RoundRobinConfig
+        >,
+    ),
+    queueStates: state.queueStates.map((queueState) => ({
+      ...queueState,
+      queue: [...queueState.queue],
+    })),
+    processStates: Object.fromEntries(
+      Object.entries(state.processStates).map(([programId, processState]) => [
+        programId,
+        { ...processState },
+      ]),
+    ),
+    lastRunningProcessId: state.lastRunningProcessId,
+  };
+}
+
 function initialMLFQState(config: MLFQConfig): MLFQState {
   validateConfig(config);
   const queues = [];
@@ -214,6 +237,7 @@ export default function mlfqPolicyFactory(
       },
     ],
     initialState: initialMLFQState,
+    snapshotState: snapshotMlfqState,
     scheduler: mlfqScheduler,
   };
 }

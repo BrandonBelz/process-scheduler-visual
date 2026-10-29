@@ -13,6 +13,10 @@ function initialRoundRobinState(_config: RoundRobinConfig): RoundRobinState {
   return { queue: [], lastRunningId: -1, runLength: 0 };
 }
 
+function snapshotRoundRobinState(state: RoundRobinState): RoundRobinState {
+  return { ...state, queue: [...state.queue] };
+}
+
 export interface RoundRobinConfig {
   timeSlice: number;
 }
@@ -97,6 +101,7 @@ export default function roundRobinPolicyFactory(
       { key: "timeSlice", label: "Time slice", min: 1, max: 20 },
     ],
     initialState: initialRoundRobinState,
+    snapshotState: snapshotRoundRobinState,
     scheduler: roundRobinScheduler,
   };
 }

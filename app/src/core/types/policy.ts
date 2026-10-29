@@ -30,6 +30,11 @@ interface BasePolicy<TState = any, TConfig = any> {
   /** The user-editable config fields; empty when there are none. */
   getConfigFields: () => ConfigField[];
   initialState: (config: TConfig) => TState;
+  /**
+   * Creates an independent state snapshot for simulation history. When this
+   * is omitted, the simulation does not retain policy state.
+   */
+  snapshotState?: (state: TState) => TState;
 }
 
 export interface StandardPolicy<TState = any, TConfig = any> extends BasePolicy<

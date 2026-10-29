@@ -28,6 +28,7 @@ export default function stcfPolicyFactory(): Policy<object> {
     config: {},
     getConfigFields: () => [],
     initialState: (_config: object) => ({}),
+    snapshotState: (state: object) => ({ ...state }),
     scheduler: stcfScheduler,
   };
 }

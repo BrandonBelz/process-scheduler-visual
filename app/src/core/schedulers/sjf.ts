@@ -30,6 +30,7 @@ export default function sjfPolicyFactory(): Policy<object> {
     config: {},
     getConfigFields: () => [],
     initialState: (_config: object) => ({}),
+    snapshotState: (state: object) => ({ ...state }),
     scheduler: sjfScheduler,
   };
 }

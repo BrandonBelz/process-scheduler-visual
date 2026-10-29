@@ -4,12 +4,14 @@ import ResultsTable from "../components/ResultsTable";
 import type Policy from "../core/types/policy";
 import type Process from "../core/types/process";
 import type { Statistic } from "../core/types/statistic";
+import type { SimulationResult } from "../core/api";
 import styles from "./SimulationView.module.css";
 
 export interface SimulationRun {
   title: string;
   policy: Policy;
   processes: Process[];
+  policyStateHistory?: SimulationResult["policyStateHistory"];
   statistics: Statistic[];
 }
 
