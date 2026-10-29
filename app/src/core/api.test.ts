@@ -83,8 +83,75 @@ describe("runSimulations", () => {
     );
 
     expect(results[42]).toBeDefined();
-    expect(results[42][0].stateHistory[0]).toBe(ProcessState.RUNNING);
-    expect(results[42][1].stateHistory[0]).toBe(ProcessState.READY);
+    expect(results[42].processes[0].stateHistory[0]).toBe(ProcessState.RUNNING);
+    expect(results[42].processes[1].stateHistory[0]).toBe(ProcessState.READY);
+  });
+
+  it("should retain independent policy state snapshots when supported", () => {
+    interface TestState {
+      count: number;
+    }
+
+    const policy: PolicyInstance<TestState> = {
+      id: 43,
+      name: "Snapshot Test",
+      description: "Tests policy state snapshots",
+      isPreemptive: true,
+      canTellTheFuture: false,
+      initialState: () => ({ count: 0 }),
+      snapshotState: (state) => ({ ...state }),
+      config: {},
+      getConfigFields: () => [],
+      scheduler: (processes, state) => {
+        state.count += 1;
+        return {
+          selectedProgramId: processes[0].programId,
+          nextState: state,
+        };
+      },
+    };
+
+    const result = runSimulations(
+      [{ id: 1, executionTime: 2, arrivalTime: 0 }],
+      [policy],
+    )[policy.id];
+
+    expect(result.policyStateHistory).toEqual([
+      { count: 0 },
+      { count: 1 },
+      { count: 2 },
+      { count: 2 },
+    ]);
+    expect(result.policyStateHistory).toHaveLength(
+      result.processes[0].stateHistory.length + 1,
+    );
+    expect(result.policyStateHistory![0]).not.toBe(
+      result.policyStateHistory![1],
+    );
+  });
+
+  it("should omit policy state history when snapshotState is not provided", () => {
+    const policy: PolicyInstance<void> = {
+      id: 44,
+      name: "No Snapshot Test",
+      description: "Tests opting out of policy state snapshots",
+      isPreemptive: true,
+      canTellTheFuture: false,
+      initialState: () => undefined,
+      config: {},
+      getConfigFields: () => [],
+      scheduler: (processes, state) => ({
+        selectedProgramId: processes[0].programId,
+        nextState: state,
+      }),
+    };
+
+    const result = runSimulations(
+      [{ id: 1, executionTime: 1, arrivalTime: 0 }],
+      [policy],
+    )[policy.id];
+
+    expect(result).not.toHaveProperty("policyStateHistory");
   });
 
   it("should supply StandardProcessDto with programId and currentState to policies where canTellTheFuture is false", () => {
@@ -145,7 +212,7 @@ describe("runSimulations", () => {
       id: 5,
     };
     const results = runSimulations(programs, [stcfPolicy]);
-    const [p1, p2] = results[stcfPolicy.id];
+    const [p1, p2] = results[stcfPolicy.id].processes;
 
     expect(p1.stateHistory).toEqual([
       ProcessState.RUNNING,
@@ -313,7 +380,7 @@ describe("runSimulations", () => {
       id: 1,
     };
     const results = runSimulations(programs, [fifoPolicy]);
-    const policyResults = results[fifoPolicy.id];
+    const policyResults = results[fifoPolicy.id].processes;
 
     expect(policyResults).toHaveLength(3);
     const [p1, p2, p3] = policyResults;
@@ -402,36 +469,40 @@ describe("runSimulations", () => {
 
 describe("calculateAllStatistics", () => {
   it("should calculate statistics for every policy result", () => {
-    const simulationResults: Record<number, Process[]> = {
-      7: [
-        {
-          program: { id: 1, executionTime: 2, arrivalTime: 0 },
-          stateHistory: [
-            ProcessState.RUNNING,
-            ProcessState.RUNNING,
-            ProcessState.COMPLETED,
-          ],
-        },
-        {
-          program: { id: 2, executionTime: 1, arrivalTime: 1 },
-          stateHistory: [
-            ProcessState.NOT_STARTED,
-            ProcessState.RUNNING,
-            ProcessState.COMPLETED,
-          ],
-        },
-      ],
-      8: [
-        {
-          program: { id: 3, executionTime: 1, arrivalTime: 2 },
-          stateHistory: [
-            ProcessState.NOT_STARTED,
-            ProcessState.NOT_STARTED,
-            ProcessState.RUNNING,
-            ProcessState.COMPLETED,
-          ],
-        },
-      ],
+    const simulationResults = {
+      7: {
+        processes: [
+          {
+            program: { id: 1, executionTime: 2, arrivalTime: 0 },
+            stateHistory: [
+              ProcessState.RUNNING,
+              ProcessState.RUNNING,
+              ProcessState.COMPLETED,
+            ],
+          },
+          {
+            program: { id: 2, executionTime: 1, arrivalTime: 1 },
+            stateHistory: [
+              ProcessState.NOT_STARTED,
+              ProcessState.RUNNING,
+              ProcessState.COMPLETED,
+            ],
+          },
+        ],
+      },
+      8: {
+        processes: [
+          {
+            program: { id: 3, executionTime: 1, arrivalTime: 2 },
+            stateHistory: [
+              ProcessState.NOT_STARTED,
+              ProcessState.NOT_STARTED,
+              ProcessState.RUNNING,
+              ProcessState.COMPLETED,
+            ],
+          },
+        ],
+      },
     };
 
     expect(calculateAllStatistics(simulationResults)).toEqual({
@@ -489,7 +560,7 @@ describe("integration with Round Robin", () => {
     };
 
     const results = runSimulations(programs, [roundRobinPolicy]);
-    const policyResults = results[roundRobinPolicy.id];
+    const policyResults = results[roundRobinPolicy.id].processes;
     const [process1, process2] = policyResults;
 
     logSimulationTimeline("Round Robin Execution", policyResults);
@@ -529,7 +600,7 @@ describe("integration with Round Robin", () => {
     };
 
     const results = runSimulations(programs, [roundRobinPolicy]);
-    const policyResults = results[roundRobinPolicy.id];
+    const policyResults = results[roundRobinPolicy.id].processes;
     const [process1, process2] = policyResults;
 
     logSimulationTimeline(
@@ -577,7 +648,7 @@ describe("integration with FIFO", () => {
       id: 1,
     };
     const results = runSimulations(programs, [fifoPolicy]);
-    const policyResults = results[fifoPolicy.id];
+    const policyResults = results[fifoPolicy.id].processes;
 
     expect(policyResults).toBeDefined();
     expect(policyResults).toHaveLength(1);
@@ -606,7 +677,7 @@ describe("integration with FIFO", () => {
       id: 1,
     };
     const results = runSimulations(programs, [fifoPolicy]);
-    const policyResults = results[fifoPolicy.id];
+    const policyResults = results[fifoPolicy.id].processes;
 
     logSimulationTimeline("Multi-Process Execution (FIFO)", policyResults);
 
@@ -660,7 +731,7 @@ describe("integration with FIFO", () => {
       id: 1,
     };
     const results = runSimulations(programs, [fifoPolicy]);
-    const policyResults = results[fifoPolicy.id];
+    const policyResults = results[fifoPolicy.id].processes;
 
     logSimulationTimeline("I/O Blocking and CPU Yielding", policyResults);
 
@@ -707,7 +778,7 @@ describe("integration with FIFO", () => {
       id: 1,
     };
     const results = runSimulations(programs, [fifoPolicy]);
-    const policyResults = results[fifoPolicy.id];
+    const policyResults = results[fifoPolicy.id].processes;
 
     logSimulationTimeline("Idle CPU During I/O Block", policyResults);
 
@@ -729,7 +800,7 @@ describe("integration with FIFO", () => {
       id: 1,
     };
     const results = runSimulations([], [fifoPolicy]);
-    const policyResults = results[fifoPolicy.id];
+    const policyResults = results[fifoPolicy.id].processes;
 
     logSimulationTimeline("Empty Programs List", policyResults);
 
@@ -751,10 +822,10 @@ describe("integration with FIFO", () => {
     const results = runSimulations(programs, [fifoPolicy]);
     logSimulationTimeline(
       "FIFO Policy Factory Integration",
-      results[fifoPolicy.id],
+      results[fifoPolicy.id].processes,
     );
     expect(results[fifoPolicy.id]).toBeDefined();
-    expect(results[fifoPolicy.id]).toHaveLength(1);
+    expect(results[fifoPolicy.id].processes).toHaveLength(1);
   });
 });
 
@@ -772,9 +843,9 @@ describe("integration with SJF", () => {
     const results = runSimulations(programs, [sjfPolicy]);
     logSimulationTimeline(
       "CPU-Only Shortest Job First (SJF)",
-      results[sjfPolicy.id],
+      results[sjfPolicy.id].processes,
     );
-    const [p1, p2] = results[sjfPolicy.id];
+    const [p1, p2] = results[sjfPolicy.id].processes;
 
     expect(p2.stateHistory.slice(0, 3)).toEqual([
       ProcessState.RUNNING,
@@ -814,9 +885,9 @@ describe("integration with SJF", () => {
     const results = runSimulations(programs, [sjfPolicy]);
     logSimulationTimeline(
       "I/O-Aware Shortest Job First (SJF)",
-      results[sjfPolicy.id],
+      results[sjfPolicy.id].processes,
     );
-    const [p1, p2] = results[sjfPolicy.id];
+    const [p1, p2] = results[sjfPolicy.id].processes;
 
     expect(p1.stateHistory[0]).toBe(ProcessState.RUNNING);
     expect(p2.stateHistory[0]).toBe(ProcessState.READY);
@@ -852,9 +923,9 @@ describe("integration with STCF", () => {
     const results = runSimulations(programs, [stcfPolicy]);
     logSimulationTimeline(
       "Shortest Total CPU Burst (STCF)",
-      results[stcfPolicy.id],
+      results[stcfPolicy.id].processes,
     );
-    const [p1, p2] = results[stcfPolicy.id];
+    const [p1, p2] = results[stcfPolicy.id].processes;
 
     expect(p1.stateHistory.slice(0, 3)).toEqual([
       ProcessState.READY,
@@ -917,8 +988,11 @@ describe("integration with MLFQ", () => {
       ],
       [policy],
     );
-    const [process1, process2] = results[policy.id];
-    logSimulationTimeline("MLFQ Allotment Demotion", results[policy.id]);
+    const [process1, process2] = results[policy.id].processes;
+    logSimulationTimeline(
+      "MLFQ Allotment Demotion",
+      results[policy.id].processes,
+    );
 
     expect(process1.stateHistory.slice(0, 4)).toEqual([
       ProcessState.RUNNING,
@@ -951,8 +1025,11 @@ describe("integration with MLFQ", () => {
       ],
       [policy],
     );
-    const [process1, process2] = results[policy.id];
-    logSimulationTimeline("MLFQ High-Priority Arrival", results[policy.id]);
+    const [process1, process2] = results[policy.id].processes;
+    logSimulationTimeline(
+      "MLFQ High-Priority Arrival",
+      results[policy.id].processes,
+    );
 
     expect(process1.stateHistory.slice(0, 3)).toEqual([
       ProcessState.RUNNING,
@@ -984,8 +1061,8 @@ describe("integration with MLFQ", () => {
       ],
       [policy],
     );
-    const [process1] = results[policy.id];
-    logSimulationTimeline("MLFQ I/O Re-entry", results[policy.id]);
+    const [process1] = results[policy.id].processes;
+    logSimulationTimeline("MLFQ I/O Re-entry", results[policy.id].processes);
 
     expect(process1.stateHistory[0]).toBe(ProcessState.RUNNING);
     expect(process1.stateHistory[1]).toBe(ProcessState.BLOCKED);
@@ -1010,8 +1087,8 @@ describe("integration with MLFQ", () => {
       ],
       [policy],
     );
-    const [process1, process2] = results[policy.id];
-    logSimulationTimeline("MLFQ Priority Boost", results[policy.id]);
+    const [process1, process2] = results[policy.id].processes;
+    logSimulationTimeline("MLFQ Priority Boost", results[policy.id].processes);
 
     expect(process1.stateHistory[3]).toBe(ProcessState.RUNNING);
     expect(process2.stateHistory[3]).toBe(ProcessState.READY);

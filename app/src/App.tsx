@@ -44,7 +44,8 @@ function App() {
       setRun({
         title: describePolicy(policy, config),
         policy,
-        processes: results[instance.id],
+        processes: results[instance.id].processes,
+        policyStateHistory: results[instance.id].policyStateHistory,
         statistics: statistics[instance.id],
       });
       setRunError(undefined);

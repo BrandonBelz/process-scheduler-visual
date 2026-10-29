@@ -6,6 +6,10 @@ interface FifoState {
   queue: number[];
 }
 
+function snapshotFifoState(state: FifoState): FifoState {
+  return { queue: [...state.queue] };
+}
+
 function initialFifoState(_config: object): FifoState {
   return { queue: [] };
 }
@@ -50,6 +54,7 @@ export default function fifoPolicyFactory(): Policy<FifoState> {
     config: {},
     getConfigFields: () => [],
     initialState: initialFifoState,
+    snapshotState: snapshotFifoState,
     scheduler: fifo_scheduler,
   };
 }

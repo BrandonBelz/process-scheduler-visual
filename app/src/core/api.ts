@@ -29,6 +29,11 @@ interface SimulationState {
   runningIndex?: number;
 }
 
+export interface SimulationResult<TState = unknown> {
+  processes: Process[];
+  policyStateHistory?: TState[];
+}
+
 function createStandardProcessDto(
   processState: ProcessSimulationState,
 ): StandardProcessDto {
@@ -231,11 +236,14 @@ function isSimulationComplete(state: SimulationState): boolean {
 export function runSimulations(
   programs: Program[],
   policies: PolicyInstance[],
-): Record<number, Process[]> {
+): Record<number, SimulationResult> {
   return Object.fromEntries(
     policies.map((policy) => {
       const state = createSimulationState(programs);
       let policyState = policy.initialState(policy.config);
+      const policyStateHistory = policy.snapshotState
+        ? [policy.snapshotState(policyState)]
+        : undefined;
       let tick = 0;
 
       while (!isSimulationComplete(state)) {
@@ -248,6 +256,7 @@ export function runSimulations(
         );
 
         policyState = nextPolicyState;
+        policyStateHistory?.push(policy.snapshotState!(policyState));
 
         state.processes.forEach((processState, index) => {
           advanceProcess(processState, index, selectedIndex, state, tick);
@@ -256,7 +265,13 @@ export function runSimulations(
         tick += 1;
       }
 
-      return [policy.id, state.processes.map(({ process }) => process)];
+      return [
+        policy.id,
+        {
+          processes: state.processes.map(({ process }) => process),
+          ...(policyStateHistory === undefined ? {} : { policyStateHistory }),
+        },
+      ];
     }),
   );
 }
@@ -314,12 +329,12 @@ function calculateStatistics(processes: Process[]): Statistic[] {
 }
 
 export function calculateAllStatistics(
-  simResults: Record<number, Process[]>,
+  simResults: Record<number, SimulationResult>,
 ): Record<number, Statistic[]> {
   const entries = Object.entries(simResults);
   const result: Record<number, Statistic[]> = {};
   entries.forEach((value) => {
-    result[Number(value[0])] = calculateStatistics(value[1]);
+    result[Number(value[0])] = calculateStatistics(value[1].processes);
   });
   return result;
 }
