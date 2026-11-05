@@ -33,13 +33,16 @@
   width: max-content;
 }
 
-.cycleLabel {
+/* Centers the label on the left edge of its column; the extra 1px is half the grid gap. */
+.momentLabel {
+  justify-self: start;
   font-family: var(--mono);
   font-size: 12px;
-  text-align: center;
+  transform: translateX(calc(-50% - 1px));
 }
 
 .processLabel {
+  grid-column: 1;
   display: flex;
   align-items: center;
   padding-right: 12px;

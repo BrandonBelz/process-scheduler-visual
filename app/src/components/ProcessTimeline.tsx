@@ -47,7 +47,11 @@ export default function ProcessTimeline({ processes }: ProcessTimelineProps) {
     0,
     ...processes.map((process) => process.stateHistory.length),
   );
-  const cycles = Array.from({ length: totalCycles }, (_, cycle) => cycle);
+  // Labels mark moments between cycles, so N cycles have N + 1 moments.
+  const moments = Array.from(
+    { length: totalCycles + 1 },
+    (_, moment) => moment,
+  );
 
   return (
     <section className={styles.timeline}>
@@ -55,13 +59,14 @@ export default function ProcessTimeline({ processes }: ProcessTimelineProps) {
         <div
           className={styles.grid}
           style={{
-            gridTemplateColumns: `max-content repeat(${totalCycles}, 2rem)`,
+            // The zero-width last column anchors the final moment's label.
+            gridTemplateColumns: `max-content repeat(${totalCycles}, 2rem) 0`,
           }}
         >
           <span />
-          {cycles.map((cycle) => (
-            <span key={cycle} className={styles.cycleLabel}>
-              {cycle}
+          {moments.map((moment) => (
+            <span key={moment} className={styles.momentLabel}>
+              {moment}
             </span>
           ))}
           {processes.map((process) => (
@@ -84,7 +89,7 @@ function TimelineRow({ process }: { process: Process }) {
         <StateCell
           key={cycle}
           state={state}
-          title={`${label}, cycle ${cycle}`}
+          title={`${label}, time ${cycle}–${cycle + 1}`}
         />
       ))}
     </>
