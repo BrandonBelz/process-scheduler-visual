@@ -25,7 +25,6 @@ export interface ConfigField {
 interface BasePolicy<TState = any, TConfig = any> {
   name: string;
   description: string;
-  isPreemptive: boolean;
   config: TConfig;
   /** The user-editable config fields; empty when there are none. */
   getConfigFields: () => ConfigField[];
@@ -37,10 +36,16 @@ interface BasePolicy<TState = any, TConfig = any> {
   snapshotState?: (state: TState) => TState;
 }
 
-export interface StandardPolicy<TState = any, TConfig = any> extends BasePolicy<
-  TState,
-  TConfig
-> {
+interface PreemptivePolicyFields {
+  isPreemptive: true;
+}
+
+interface NonPreemptivePolicyFields {
+  isPreemptive: false;
+  returnControlOnBlock: boolean;
+}
+
+interface StandardScheduler<TState, TConfig> {
   canTellTheFuture: false;
   scheduler: (
     processes: readonly StandardProcessDto[],
@@ -50,10 +55,7 @@ export interface StandardPolicy<TState = any, TConfig = any> extends BasePolicy<
   ) => SchedulerDecision<TState>;
 }
 
-export interface FutureTellingPolicy<
-  TState = any,
-  TConfig = any,
-> extends BasePolicy<TState, TConfig> {
+interface FutureTellingScheduler<TState, TConfig> {
   canTellTheFuture: true;
   scheduler: (
     processes: readonly FutureTellingProcessDto[],
@@ -63,19 +65,31 @@ export interface FutureTellingPolicy<
   ) => SchedulerDecision<TState>;
 }
 
-export interface StandardPolicyInstance<
-  TState = any,
-  TConfig = any,
-> extends StandardPolicy<TState, TConfig> {
-  id: number;
-}
+export type StandardPolicy<TState = any, TConfig = any> =
+  | (BasePolicy<TState, TConfig> &
+      PreemptivePolicyFields &
+      StandardScheduler<TState, TConfig>)
+  | (BasePolicy<TState, TConfig> &
+      NonPreemptivePolicyFields &
+      StandardScheduler<TState, TConfig>);
 
-export interface FutureTellingPolicyInstance<
+export type FutureTellingPolicy<TState = any, TConfig = any> =
+  | (BasePolicy<TState, TConfig> &
+      PreemptivePolicyFields &
+      FutureTellingScheduler<TState, TConfig>)
+  | (BasePolicy<TState, TConfig> &
+      NonPreemptivePolicyFields &
+      FutureTellingScheduler<TState, TConfig>);
+
+export type StandardPolicyInstance<
   TState = any,
   TConfig = any,
-> extends FutureTellingPolicy<TState, TConfig> {
-  id: number;
-}
+> = StandardPolicy<TState, TConfig> & { id: number };
+
+export type FutureTellingPolicyInstance<
+  TState = any,
+  TConfig = any,
+> = FutureTellingPolicy<TState, TConfig> & { id: number };
 
 export type PolicyInstance<TState = any, TConfig = any> =
   | StandardPolicyInstance<TState, TConfig>

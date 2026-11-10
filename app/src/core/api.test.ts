@@ -87,6 +87,39 @@ describe("runSimulations", () => {
     expect(results[42].processes[1].stateHistory[0]).toBe(ProcessState.READY);
   });
 
+  it("should apply block handoff independently to each non-preemptive instance", () => {
+    const programs: Program[] = [
+      {
+        id: 1,
+        executionTime: 2,
+        arrivalTime: 0,
+        ioSetting: { interval: 1, length: 2 },
+      },
+      { id: 2, executionTime: 1, arrivalTime: 0 },
+    ];
+    const fifoPolicy = fifoPolicyFactory();
+    const handoffInstance = {
+      ...fifoPolicy,
+      id: 45,
+      returnControlOnBlock: true,
+    };
+    const retainOwnershipInstance = {
+      ...fifoPolicy,
+      id: 46,
+      returnControlOnBlock: false,
+    };
+
+    const results = runSimulations(programs, [
+      handoffInstance,
+      retainOwnershipInstance,
+    ]);
+
+    expect(results[45].processes[1].stateHistory[1]).toBe(ProcessState.RUNNING);
+    expect(results[46].processes[1].stateHistory[1]).toBe(ProcessState.READY);
+    expect(results[46].processes[1].stateHistory[2]).toBe(ProcessState.READY);
+    expect(results[46].processes[0].stateHistory[3]).toBe(ProcessState.RUNNING);
+  });
+
   it("should retain independent policy state snapshots when supported", () => {
     interface TestState {
       count: number;
@@ -162,6 +195,7 @@ describe("runSimulations", () => {
       name: "TestStandard",
       description: "Inspects StandardProcessDto snapshots",
       isPreemptive: false,
+      returnControlOnBlock: true,
       canTellTheFuture: false,
       initialState: () => undefined,
       config: {},
@@ -245,6 +279,7 @@ describe("runSimulations", () => {
       name: "TestFuture",
       description: "Inspects FutureTellingProcessDto snapshots",
       isPreemptive: false,
+      returnControlOnBlock: true,
       canTellTheFuture: true,
       initialState: () => undefined,
       config: {},
@@ -337,6 +372,7 @@ describe("runSimulations", () => {
       name: "TestFuturePrecedence",
       description: "Checks burst calculation when executionTime < interval",
       isPreemptive: false,
+      returnControlOnBlock: true,
       canTellTheFuture: true,
       config: {},
       getConfigFields: () => [],

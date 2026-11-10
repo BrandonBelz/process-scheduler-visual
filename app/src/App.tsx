@@ -36,7 +36,12 @@ function App() {
 
     const policy = findPolicy(workload.policyName);
     const config = { ...policy.config, ...validation.policyConfig };
-    const instance = makePolicyInstance(policy, 0, config);
+    const instance = makePolicyInstance(
+      policy,
+      0,
+      config,
+      workload.returnControlOnBlock,
+    );
 
     try {
       const results = runSimulations(validation.programs, [instance]);
