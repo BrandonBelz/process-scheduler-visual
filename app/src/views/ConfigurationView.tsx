@@ -68,12 +68,16 @@ export default function ConfigurationView({
           policy={policy}
           config={workload.policyConfig}
           errors={errors?.policyConfig ?? {}}
+          returnControlOnBlock={workload.returnControlOnBlock}
           onSelect={selectPolicy}
           onConfigChange={(field, value) =>
             onChange({
               ...workload,
               policyConfig: { ...workload.policyConfig, [field]: value },
             })
+          }
+          onReturnControlOnBlockChange={(value) =>
+            onChange({ ...workload, returnControlOnBlock: value })
           }
         />
       </section>

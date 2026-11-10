@@ -50,6 +50,7 @@ export default function fifoPolicyFactory(): Policy<FifoState> {
     description:
       "First In, First Out (FIFO) is the most basic algorithm. It runs processes to completion in the order that they arrive.",
     isPreemptive: false,
+    returnControlOnBlock: true,
     canTellTheFuture: false,
     config: {},
     getConfigFields: () => [],

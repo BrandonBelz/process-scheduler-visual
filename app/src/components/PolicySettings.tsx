@@ -9,8 +9,10 @@ interface PolicySettingsProps {
   policy: Policy;
   config: Record<string, string>;
   errors: Record<string, string>;
+  returnControlOnBlock: boolean;
   onSelect: (policyName: string) => void;
   onConfigChange: (field: string, value: string) => void;
+  onReturnControlOnBlockChange: (value: boolean) => void;
 }
 
 // Picks the policy to run and edits the config fields it reports.
@@ -19,10 +21,13 @@ export default function PolicySettings({
   policy,
   config,
   errors,
+  returnControlOnBlock,
   onSelect,
   onConfigChange,
+  onReturnControlOnBlockChange,
 }: PolicySettingsProps) {
   const selectId = useId();
+  const returnControlOnBlockId = useId();
 
   return (
     <div className={styles.settings}>
@@ -51,6 +56,21 @@ export default function PolicySettings({
             onChange={(value) => onConfigChange(key, value)}
           />
         ))}
+        {!policy.isPreemptive && (
+          <div>
+            <label htmlFor={returnControlOnBlockId}>
+              <input
+                id={returnControlOnBlockId}
+                type="checkbox"
+                checked={returnControlOnBlock}
+                onChange={(event) =>
+                  onReturnControlOnBlockChange(event.target.checked)
+                }
+              />
+              Return control when a process blocks
+            </label>
+          </div>
+        )}
       </div>
       <PolicyTags policy={policy} />
       <p className={styles.description}>{policy.description}</p>

@@ -26,6 +26,7 @@ export default function sjfPolicyFactory(): Policy<object> {
     description:
       "Shortest Job First (SJF), as its name suggests, runs the shortest job first. It relies on knowing how long each process must run, which is unrealistic.",
     isPreemptive: false,
+    returnControlOnBlock: true,
     canTellTheFuture: true,
     config: {},
     getConfigFields: () => [],

@@ -107,6 +107,19 @@ function selectProcessIndex<TState>(
   policyState: TState,
   tick: number,
 ): SelectionResult<TState> {
+  const retainsBlockedOwnership =
+    !policy.isPreemptive &&
+    !policy.returnControlOnBlock &&
+    state.runningIndex !== undefined &&
+    state.processes[state.runningIndex].blockedTicksRemaining > 0;
+
+  if (retainsBlockedOwnership) {
+    return {
+      selectedIndex: undefined,
+      nextPolicyState: policyState,
+    };
+  }
+
   if (readyIndices.length === 0) {
     return {
       selectedIndex: undefined,
@@ -177,6 +190,7 @@ function advanceProcess(
   selectedIndex: number | undefined,
   state: SimulationState,
   tick: number,
+  returnControlOnBlock: boolean,
 ): void {
   const { process } = processState;
 
@@ -221,7 +235,9 @@ function advanceProcess(
   ) {
     processState.blockedTicksRemaining = ioSetting.length;
     processState.cpuTicksSinceIo = 0;
-    state.runningIndex = undefined;
+    if (returnControlOnBlock) {
+      state.runningIndex = undefined;
+    }
   }
 }
 
@@ -259,7 +275,14 @@ export function runSimulations(
         policyStateHistory?.push(policy.snapshotState!(policyState));
 
         state.processes.forEach((processState, index) => {
-          advanceProcess(processState, index, selectedIndex, state, tick);
+          advanceProcess(
+            processState,
+            index,
+            selectedIndex,
+            state,
+            tick,
+            policy.isPreemptive || policy.returnControlOnBlock,
+          );
         });
 
         tick += 1;
@@ -370,10 +393,19 @@ export function makePolicyInstance<TState, TConfig>(
   policy: Policy<TState, TConfig>,
   id: number,
   config: TConfig = policy.config,
+  returnControlOnBlock?: boolean,
 ): PolicyInstance<TState, TConfig> {
-  return {
+  const instance = {
     ...policy,
     id,
     config,
   };
+
+  return instance.isPreemptive
+    ? instance
+    : {
+        ...instance,
+        returnControlOnBlock:
+          returnControlOnBlock ?? instance.returnControlOnBlock,
+      };
 }

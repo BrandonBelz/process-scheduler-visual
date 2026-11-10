@@ -18,6 +18,7 @@ export interface WorkloadDraft {
   programs: ProgramDraft[];
   policyName: string;
   policyConfig: Record<string, string>;
+  returnControlOnBlock: boolean;
 }
 
 // A counter rather than crypto.randomUUID(), which only exists on HTTPS and localhost.
@@ -62,6 +63,7 @@ export function createDefaultWorkload(): WorkloadDraft {
     ],
     policyName: policy.name,
     policyConfig: defaultPolicyConfig(policy),
+    returnControlOnBlock: true,
   };
 }
 
