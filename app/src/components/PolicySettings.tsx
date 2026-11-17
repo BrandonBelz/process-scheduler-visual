@@ -57,17 +57,19 @@ export default function PolicySettings({
             ))}
           </select>
         </div>
-        {policy.getConfigFields().map(({ key, label, description, min, max }) => (
-          <NumberField
-            key={key}
-            label={label}
-            description={description}
-            value={config[key] ?? ""}
-            range={{ min, max }}
-            error={errors[key]}
-            onChange={(value) => onConfigChange(key, value)}
-          />
-        ))}
+        {policy
+          .getConfigFields()
+          .map(({ key, label, description, min, max }) => (
+            <NumberField
+              key={key}
+              label={label}
+              description={description}
+              value={config[key] ?? ""}
+              range={{ min, max }}
+              error={errors[key]}
+              onChange={(value) => onConfigChange(key, value)}
+            />
+          ))}
         {!policy.isPreemptive && (
           <label
             className={styles.toggle}
