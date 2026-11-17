@@ -11,10 +11,12 @@ interface PolicySettingsProps {
   policy: Policy;
   config: Record<string, string>;
   errors: PolicyErrors;
+  returnControlOnBlock: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onSelect: (policyName: string) => void;
   onConfigChange: (field: string, value: string) => void;
+  onReturnControlOnBlockChange: (value: boolean) => void;
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
 }
@@ -26,10 +28,12 @@ export default function PolicySettings({
   policy,
   config,
   errors,
+  returnControlOnBlock,
   canMoveUp,
   canMoveDown,
   onSelect,
   onConfigChange,
+  onReturnControlOnBlockChange,
   onMove,
   onRemove,
 }: PolicySettingsProps) {
@@ -63,6 +67,18 @@ export default function PolicySettings({
             onChange={(value) => onConfigChange(key, value)}
           />
         ))}
+        {!policy.isPreemptive && (
+          <label className={styles.toggle}>
+            <input
+              type="checkbox"
+              checked={returnControlOnBlock}
+              onChange={(event) =>
+                onReturnControlOnBlockChange(event.target.checked)
+              }
+            />
+            Return control when a process blocks
+          </label>
+        )}
         <div className={styles.actions}>
           <button
             type="button"

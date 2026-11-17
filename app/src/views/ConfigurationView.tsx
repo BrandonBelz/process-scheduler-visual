@@ -10,7 +10,7 @@ import {
   POLICIES,
   createPolicyDraft,
   createProgramDraft,
-  defaultPolicyConfig,
+  defaultPolicySettings,
   findPolicy,
   type PolicyDraft,
   type ProgramDraft,
@@ -101,20 +101,26 @@ export default function ConfigurationView({
                   errors={errors?.policies[index] ?? {}}
                   canMoveUp={index > 0}
                   canMoveDown={index < policies.length - 1}
-                  onSelect={(policyName) => {
-                    const nextPolicy = findPolicy(policyName);
+                  returnControlOnBlock={draft.returnControlOnBlock}
+                  onSelect={(policyName) =>
                     setPolicies(
-                      updateItem(policies, draft.key, {
-                        policyName: nextPolicy.name,
-                        config: defaultPolicyConfig(nextPolicy),
-                      }),
-                    );
-                  }}
+                      updateItem(
+                        policies,
+                        draft.key,
+                        defaultPolicySettings(findPolicy(policyName)),
+                      ),
+                    )
+                  }
                   onConfigChange={(field, value) =>
                     setPolicies(
                       updateItem(policies, draft.key, {
                         config: { ...draft.config, [field]: value },
                       }),
+                    )
+                  }
+                  onReturnControlOnBlockChange={(returnControlOnBlock) =>
+                    setPolicies(
+                      updateItem(policies, draft.key, { returnControlOnBlock }),
                     )
                   }
                   onMove={(offset) =>

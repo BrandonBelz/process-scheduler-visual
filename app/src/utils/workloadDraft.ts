@@ -19,6 +19,8 @@ export interface PolicyDraft {
   key: string;
   policyName: string;
   config: Record<string, string>;
+  /** Only used by non-preemptive policies; preemptive ones always return control. */
+  returnControlOnBlock: boolean;
 }
 
 export interface WorkloadDraft {
@@ -57,12 +59,19 @@ export function defaultPolicyConfig(policy: Policy): Record<string, string> {
   );
 }
 
-export function createPolicyDraft(policy: Policy): PolicyDraft {
+// The editable settings a newly chosen policy starts with.
+export function defaultPolicySettings(
+  policy: Policy,
+): Omit<PolicyDraft, "key"> {
   return {
-    key: String(nextKey++),
     policyName: policy.name,
     config: defaultPolicyConfig(policy),
+    returnControlOnBlock: policy.isPreemptive || policy.returnControlOnBlock,
   };
+}
+
+export function createPolicyDraft(policy: Policy): PolicyDraft {
+  return { key: String(nextKey++), ...defaultPolicySettings(policy) };
 }
 
 // Prefilled example shown on a fresh visit (FR-019).

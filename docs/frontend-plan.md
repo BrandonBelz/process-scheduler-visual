@@ -38,7 +38,10 @@ in API order, joined by program ID. Calculation rules stay in core.
   each with its own policy and settings. Users can add, reorder, and remove
   them; Add suggests a policy not yet in the list. Instance IDs follow list
   position when the run starts, and React keys are separate stable IDs, as with
-  programs. The prefilled example runs FIFO and Round Robin.
+  programs. The prefilled example runs FIFO and Round Robin. Each
+  non-preemptive instance has its own "Return control when a process blocks"
+  setting, which resets to the policy's default when the policy changes; when
+  off, its label adds "Keeps CPU when blocked".
 - **Labels:** `numberPolicyNames` in core numbers policies that appear more than
   once, in list order, and `labelPolicyInstances` adds their settings, for
   example `Round Robin #2 (Time slice: 5)` (FR-026). The configuration view

@@ -38,7 +38,12 @@ function App() {
     const instances = workload.policies.map((draft, index) => {
       const policy = findPolicy(draft.policyName);
       const config = { ...policy.config, ...validation.policyConfigs[index] };
-      return makePolicyInstance(policy, index, config);
+      return makePolicyInstance(
+        policy,
+        index,
+        config,
+        draft.returnControlOnBlock,
+      );
     });
     const titles = labelPolicyInstances(instances);
 

@@ -28,6 +28,15 @@
   font-size: 14px;
 }
 
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Lines the checkbox up with the inputs beside it. */
+  margin-top: 26px;
+  font-size: 14px;
+}
+
 .actions {
   display: flex;
   gap: 6px;
