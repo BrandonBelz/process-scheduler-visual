@@ -12,6 +12,8 @@ const validProgram: ProgramInput = { executionTime: "3", arrivalTime: "0" };
 const timeSliceField: ConfigField = {
   key: "timeSlice",
   label: "Time slice",
+  description:
+    "Number of CPU cycles a process may run before Round Robin considers the next ready process.",
   min: 1,
   max: 20,
 };
@@ -234,6 +236,45 @@ describe("policy config fields", () => {
 
     expect(roundRobin?.getConfigFields().map(({ key }) => key)).toEqual([
       "timeSlice",
+    ]);
+  });
+
+  it("should expose concise labels and descriptions for configurable fields", () => {
+    const fields = getPolicies()
+      .flatMap((policy) => policy.getConfigFields())
+      .map(({ key, label, description }) => ({ key, label, description }));
+
+    expect(fields).toEqual([
+      {
+        key: "timeSlice",
+        label: "Slice",
+        description:
+          "Number of CPU cycles a process may run before Round Robin considers the next ready process.",
+      },
+      {
+        key: "numberOfQueues",
+        label: "Queues",
+        description:
+          "Number of priority queues. Higher-priority queues are selected before lower-priority queues.",
+      },
+      {
+        key: "timeSlice",
+        label: "Slice",
+        description:
+          "Number of CPU cycles a process may run before Round Robin selects the next process in this queue.",
+      },
+      {
+        key: "allotmentPerProcess",
+        label: "Allotment",
+        description:
+          "Maximum number of CPU cycles a process may receive at its current priority before it moves to a lower-priority queue.",
+      },
+      {
+        key: "priorityBoostInterval",
+        label: "Boost interval",
+        description:
+          "Number of simulation cycles between priority boosts that return processes to the highest-priority queue.",
+      },
     ]);
   });
 

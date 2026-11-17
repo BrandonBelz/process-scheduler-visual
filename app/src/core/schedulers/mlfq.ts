@@ -226,12 +226,35 @@ export default function mlfqPolicyFactory(
     canTellTheFuture: false,
     config: config,
     getConfigFields: () => [
-      { key: "numberOfQueues", label: "Queues", min: 1, max: 5 },
-      { key: "timeSlice", label: "Time slice", min: 1, max: 20 },
-      { key: "allotmentPerProcess", label: "Allotment", min: 1, max: 20 },
+      {
+        key: "numberOfQueues",
+        label: "Queues",
+        description:
+          "Number of priority queues. Higher-priority queues are selected before lower-priority queues.",
+        min: 1,
+        max: 5,
+      },
+      {
+        key: "timeSlice",
+        label: "Slice",
+        description:
+          "Number of CPU cycles a process may run before Round Robin selects the next process in this queue.",
+        min: 1,
+        max: 20,
+      },
+      {
+        key: "allotmentPerProcess",
+        label: "Allotment",
+        description:
+          "Maximum number of CPU cycles a process may receive at its current priority before it moves to a lower-priority queue.",
+        min: 1,
+        max: 20,
+      },
       {
         key: "priorityBoostInterval",
-        label: "Priority boost interval",
+        label: "Boost interval",
+        description:
+          "Number of simulation cycles between priority boosts that return processes to the highest-priority queue.",
         min: 1,
         max: 100,
       },
