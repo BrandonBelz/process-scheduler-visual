@@ -1,36 +1,43 @@
 import { useId } from "react";
 import type Policy from "../core/types/policy";
+import type { PolicyErrors } from "../core/validation";
 import NumberField from "./NumberField";
 import PolicyTags from "./PolicyTags";
 import styles from "./PolicySettings.module.css";
 
 interface PolicySettingsProps {
+  label: string;
   policies: Policy[];
   policy: Policy;
   config: Record<string, string>;
-  errors: Record<string, string>;
-  returnControlOnBlock: boolean;
+  errors: PolicyErrors;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   onSelect: (policyName: string) => void;
   onConfigChange: (field: string, value: string) => void;
-  onReturnControlOnBlockChange: (value: boolean) => void;
+  onMove: (offset: -1 | 1) => void;
+  onRemove: () => void;
 }
 
-// Picks the policy to run and edits the config fields it reports.
+// Edits one policy instance: its policy, the config fields it reports, and its place in the list.
 export default function PolicySettings({
+  label,
   policies,
   policy,
   config,
   errors,
-  returnControlOnBlock,
+  canMoveUp,
+  canMoveDown,
   onSelect,
   onConfigChange,
-  onReturnControlOnBlockChange,
+  onMove,
+  onRemove,
 }: PolicySettingsProps) {
   const selectId = useId();
-  const returnControlOnBlockId = useId();
 
   return (
-    <div className={styles.settings}>
+    <fieldset className={styles.settings}>
+      <legend className={styles.label}>{label}</legend>
       <div className={styles.fields}>
         <div className={styles.select}>
           <label htmlFor={selectId}>Scheduling policy</label>
@@ -56,24 +63,34 @@ export default function PolicySettings({
             onChange={(value) => onConfigChange(key, value)}
           />
         ))}
-        {!policy.isPreemptive && (
-          <div>
-            <label htmlFor={returnControlOnBlockId}>
-              <input
-                id={returnControlOnBlockId}
-                type="checkbox"
-                checked={returnControlOnBlock}
-                onChange={(event) =>
-                  onReturnControlOnBlockChange(event.target.checked)
-                }
-              />
-              Return control when a process blocks
-            </label>
-          </div>
-        )}
+        <div className={styles.actions}>
+          <button
+            type="button"
+            onClick={() => onMove(-1)}
+            disabled={!canMoveUp}
+            aria-label={`Move ${label} up`}
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(1)}
+            disabled={!canMoveDown}
+            aria-label={`Move ${label} down`}
+          >
+            ↓
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${label}`}
+          >
+            Remove
+          </button>
+        </div>
       </div>
       <PolicyTags policy={policy} />
       <p className={styles.description}>{policy.description}</p>
-    </div>
+    </fieldset>
   );
 }

@@ -4,6 +4,7 @@ import type { ConfigField } from "./types/policy";
 import {
   parseWholeNumber,
   validateWorkload,
+  type PolicyInput,
   type ProgramInput,
 } from "./validation";
 
@@ -14,6 +15,7 @@ const timeSliceField: ConfigField = {
   min: 1,
   max: 20,
 };
+const fifoInput: PolicyInput = { configFields: [], config: {} };
 
 describe("parseWholeNumber", () => {
   const range = { min: 1, max: 20 };
@@ -64,8 +66,10 @@ describe("validateWorkload", () => {
           io: { interval: "2", length: "3" },
         },
       ],
-      configFields: [timeSliceField],
-      policyConfig: { timeSlice: "2" },
+      policies: [
+        fifoInput,
+        { configFields: [timeSliceField], config: { timeSlice: "2" } },
+      ],
     });
 
     expect(result).toEqual({
@@ -79,7 +83,7 @@ describe("validateWorkload", () => {
           ioSetting: { interval: 2, length: 3 },
         },
       ],
-      policyConfig: { timeSlice: 2 },
+      policyConfigs: [{}, { timeSlice: 2 }],
     });
   });
 
@@ -93,8 +97,7 @@ describe("validateWorkload", () => {
           io: { interval: "1.5", length: "" },
         },
       ],
-      configFields: [],
-      policyConfig: {},
+      policies: [fifoInput],
     });
 
     expect(result).toEqual({
@@ -109,7 +112,7 @@ describe("validateWorkload", () => {
             ioLength: "Required.",
           },
         ],
-        policyConfig: {},
+        policies: [{}],
       },
     });
   });
@@ -117,8 +120,7 @@ describe("validateWorkload", () => {
   it("should ignore I/O fields when I/O is disabled", () => {
     const result = validateWorkload({
       programs: [validProgram],
-      configFields: [],
-      policyConfig: {},
+      policies: [fifoInput],
     });
 
     expect(result.valid).toBe(true);
@@ -128,18 +130,15 @@ describe("validateWorkload", () => {
   it("should require between 1 and 10 programs", () => {
     const empty = validateWorkload({
       programs: [],
-      configFields: [],
-      policyConfig: {},
+      policies: [fifoInput],
     });
     const tooMany = validateWorkload({
       programs: Array(11).fill(validProgram),
-      configFields: [],
-      policyConfig: {},
+      policies: [fifoInput],
     });
     const atLimit = validateWorkload({
       programs: Array(10).fill(validProgram),
-      configFields: [],
-      policyConfig: {},
+      policies: [fifoInput],
     });
 
     expect(empty.valid).toBe(false);
@@ -150,20 +149,69 @@ describe("validateWorkload", () => {
     expect(atLimit.valid).toBe(true);
   });
 
-  it("should validate the policy's config fields against their limits", () => {
+  it("should require between 1 and 5 policies, counting duplicates", () => {
+    const empty = validateWorkload({ programs: [validProgram], policies: [] });
+    const tooMany = validateWorkload({
+      programs: [validProgram],
+      policies: Array(6).fill(fifoInput),
+    });
+    const atLimit = validateWorkload({
+      programs: [validProgram],
+      policies: Array(5).fill(fifoInput),
+    });
+
+    expect(empty.valid).toBe(false);
+    if (!empty.valid) {
+      expect(empty.errors.policyCount).toBe("Add between 1 and 5 policies.");
+    }
+    expect(tooMany.valid).toBe(false);
+    expect(atLimit.valid).toBe(true);
+  });
+
+  it("should validate each policy's config fields against their limits", () => {
     const quantumField = { ...timeSliceField, key: "quantum" };
     const result = validateWorkload({
       programs: [validProgram],
-      configFields: [timeSliceField, quantumField],
-      policyConfig: { timeSlice: "21", unknownField: "x" },
+      policies: [
+        {
+          configFields: [timeSliceField, quantumField],
+          config: { timeSlice: "21", unknownField: "x" },
+        },
+        fifoInput,
+        { configFields: [timeSliceField], config: { timeSlice: "abc" } },
+      ],
     });
 
     expect(result.valid).toBe(false);
     if (!result.valid) {
-      expect(result.errors.policyConfig).toEqual({
-        timeSlice: "Must be between 1 and 20.",
-        quantum: "Required.",
-      });
+      expect(result.errors.policies).toEqual([
+        {
+          timeSlice: "Must be between 1 and 20.",
+          quantum: "Required.",
+        },
+        {},
+        { timeSlice: "Must be a number." },
+      ]);
+    }
+  });
+
+  it("should keep identical policy instances separate", () => {
+    const roundRobinInput: PolicyInput = {
+      configFields: [timeSliceField],
+      config: { timeSlice: "2" },
+    };
+    const result = validateWorkload({
+      programs: [validProgram],
+      policies: [roundRobinInput, roundRobinInput],
+    });
+
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.policyConfigs).toEqual([
+        { timeSlice: 2 },
+        { timeSlice: 2 },
+      ]);
+      expect(result.policyConfigs[0]).not.toBe(result.policyConfigs[1]);
     }
   });
 });

@@ -4,6 +4,9 @@ import {
   describePolicy,
   getPolicies,
   getPolicy,
+  labelPolicyInstances,
+  makePolicyInstance,
+  numberPolicyNames,
   runSimulations,
 } from "./api";
 import fifoPolicyFactory from "./schedulers/fifo";
@@ -87,39 +90,6 @@ describe("runSimulations", () => {
     expect(results[42].processes[1].stateHistory[0]).toBe(ProcessState.READY);
   });
 
-  it("should apply block handoff independently to each non-preemptive instance", () => {
-    const programs: Program[] = [
-      {
-        id: 1,
-        executionTime: 2,
-        arrivalTime: 0,
-        ioSetting: { interval: 1, length: 2 },
-      },
-      { id: 2, executionTime: 1, arrivalTime: 0 },
-    ];
-    const fifoPolicy = fifoPolicyFactory();
-    const handoffInstance = {
-      ...fifoPolicy,
-      id: 45,
-      returnControlOnBlock: true,
-    };
-    const retainOwnershipInstance = {
-      ...fifoPolicy,
-      id: 46,
-      returnControlOnBlock: false,
-    };
-
-    const results = runSimulations(programs, [
-      handoffInstance,
-      retainOwnershipInstance,
-    ]);
-
-    expect(results[45].processes[1].stateHistory[1]).toBe(ProcessState.RUNNING);
-    expect(results[46].processes[1].stateHistory[1]).toBe(ProcessState.READY);
-    expect(results[46].processes[1].stateHistory[2]).toBe(ProcessState.READY);
-    expect(results[46].processes[0].stateHistory[3]).toBe(ProcessState.RUNNING);
-  });
-
   it("should retain independent policy state snapshots when supported", () => {
     interface TestState {
       count: number;
@@ -195,7 +165,6 @@ describe("runSimulations", () => {
       name: "TestStandard",
       description: "Inspects StandardProcessDto snapshots",
       isPreemptive: false,
-      returnControlOnBlock: true,
       canTellTheFuture: false,
       initialState: () => undefined,
       config: {},
@@ -279,7 +248,6 @@ describe("runSimulations", () => {
       name: "TestFuture",
       description: "Inspects FutureTellingProcessDto snapshots",
       isPreemptive: false,
-      returnControlOnBlock: true,
       canTellTheFuture: true,
       initialState: () => undefined,
       config: {},
@@ -372,7 +340,6 @@ describe("runSimulations", () => {
       name: "TestFuturePrecedence",
       description: "Checks burst calculation when executionTime < interval",
       isPreemptive: false,
-      returnControlOnBlock: true,
       canTellTheFuture: true,
       config: {},
       getConfigFields: () => [],
@@ -1003,6 +970,41 @@ describe("describePolicy", () => {
 
   it("should use the bare name for a policy without config fields", () => {
     expect(describePolicy(fifoPolicyFactory(), {})).toBe("FIFO");
+  });
+
+  it("should accept a different display name", () => {
+    expect(
+      describePolicy(roundRobinPolicyFactory(), { timeSlice: 5 }, "RR #2"),
+    ).toBe("RR #2 (Time slice: 5)");
+  });
+});
+
+describe("numberPolicyNames", () => {
+  it("should number only names that repeat, in list order", () => {
+    expect(
+      numberPolicyNames(["Round Robin", "FIFO", "Round Robin", "Round Robin"]),
+    ).toEqual(["Round Robin #1", "FIFO", "Round Robin #2", "Round Robin #3"]);
+  });
+
+  it("should handle an empty list", () => {
+    expect(numberPolicyNames([])).toEqual([]);
+  });
+});
+
+describe("labelPolicyInstances", () => {
+  it("should label duplicates by number and settings (FR-026)", () => {
+    const roundRobin = roundRobinPolicyFactory();
+    expect(
+      labelPolicyInstances([
+        makePolicyInstance(roundRobin, 0, { timeSlice: 2 }),
+        makePolicyInstance(fifoPolicyFactory(), 1),
+        makePolicyInstance(roundRobin, 2, { timeSlice: 5 }),
+      ]),
+    ).toEqual([
+      "Round Robin #1 (Time slice: 2)",
+      "FIFO",
+      "Round Robin #2 (Time slice: 5)",
+    ]);
   });
 });
 

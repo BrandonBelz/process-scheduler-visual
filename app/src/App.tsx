@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   calculateAllStatistics,
-  describePolicy,
+  labelPolicyInstances,
   makePolicyInstance,
   runSimulations,
 } from "./core/api";
@@ -34,24 +34,26 @@ function App() {
   function handleRun() {
     if (!validation.valid) return;
 
-    const policy = findPolicy(workload.policyName);
-    const config = { ...policy.config, ...validation.policyConfig };
-    const instance = makePolicyInstance(
-      policy,
-      0,
-      config,
-      workload.returnControlOnBlock,
-    );
+    // Instance IDs follow list position; every instance runs the same programs (FR-006).
+    const instances = workload.policies.map((draft, index) => {
+      const policy = findPolicy(draft.policyName);
+      const config = { ...policy.config, ...validation.policyConfigs[index] };
+      return makePolicyInstance(policy, index, config);
+    });
+    const titles = labelPolicyInstances(instances);
 
     try {
-      const results = runSimulations(validation.programs, [instance]);
+      const results = runSimulations(validation.programs, instances);
       const statistics = calculateAllStatistics(results);
       setRun({
-        title: describePolicy(policy, config),
-        policy,
-        processes: results[instance.id].processes,
-        policyStateHistory: results[instance.id].policyStateHistory,
-        statistics: statistics[instance.id],
+        instances: instances.map((instance, index) => ({
+          id: instance.id,
+          title: titles[index],
+          policy: instance,
+          processes: results[instance.id].processes,
+          policyStateHistory: results[instance.id].policyStateHistory,
+          statistics: statistics[instance.id],
+        })),
       });
       setRunError(undefined);
     } catch (error) {

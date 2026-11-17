@@ -107,19 +107,6 @@ function selectProcessIndex<TState>(
   policyState: TState,
   tick: number,
 ): SelectionResult<TState> {
-  const retainsBlockedOwnership =
-    !policy.isPreemptive &&
-    !policy.returnControlOnBlock &&
-    state.runningIndex !== undefined &&
-    state.processes[state.runningIndex].blockedTicksRemaining > 0;
-
-  if (retainsBlockedOwnership) {
-    return {
-      selectedIndex: undefined,
-      nextPolicyState: policyState,
-    };
-  }
-
   if (readyIndices.length === 0) {
     return {
       selectedIndex: undefined,
@@ -190,7 +177,6 @@ function advanceProcess(
   selectedIndex: number | undefined,
   state: SimulationState,
   tick: number,
-  returnControlOnBlock: boolean,
 ): void {
   const { process } = processState;
 
@@ -235,9 +221,7 @@ function advanceProcess(
   ) {
     processState.blockedTicksRemaining = ioSetting.length;
     processState.cpuTicksSinceIo = 0;
-    if (returnControlOnBlock) {
-      state.runningIndex = undefined;
-    }
+    state.runningIndex = undefined;
   }
 }
 
@@ -275,14 +259,7 @@ export function runSimulations(
         policyStateHistory?.push(policy.snapshotState!(policyState));
 
         state.processes.forEach((processState, index) => {
-          advanceProcess(
-            processState,
-            index,
-            selectedIndex,
-            state,
-            tick,
-            policy.isPreemptive || policy.returnControlOnBlock,
-          );
+          advanceProcess(processState, index, selectedIndex, state, tick);
         });
 
         tick += 1;
@@ -380,32 +357,41 @@ export function getPolicy(name: string): Policy | undefined {
 export function describePolicy(
   policy: Policy,
   config: Record<string, number>,
+  name = policy.name,
 ): string {
   const settings = policy
     .getConfigFields()
     .map(({ key, label }) => `${label}: ${config[key]}`);
-  return settings.length > 0
-    ? `${policy.name} (${settings.join(", ")})`
-    : policy.name;
+  return settings.length > 0 ? `${name} (${settings.join(", ")})` : name;
+}
+
+// Numbers policy names that appear more than once, in list order, e.g. "Round Robin #2".
+export function numberPolicyNames(names: string[]): string[] {
+  return names.map((name, index) => {
+    if (names.filter((other) => other === name).length === 1) return name;
+    const number = names
+      .slice(0, index + 1)
+      .filter((other) => other === name).length;
+    return `${name} #${number}`;
+  });
+}
+
+// Labels instances by number and settings (FR-026), e.g. "Round Robin #2 (Time slice: 5)".
+export function labelPolicyInstances(instances: PolicyInstance[]): string[] {
+  const names = numberPolicyNames(instances.map(({ name }) => name));
+  return instances.map((instance, index) =>
+    describePolicy(instance, instance.config, names[index]),
+  );
 }
 
 export function makePolicyInstance<TState, TConfig>(
   policy: Policy<TState, TConfig>,
   id: number,
   config: TConfig = policy.config,
-  returnControlOnBlock?: boolean,
 ): PolicyInstance<TState, TConfig> {
-  const instance = {
+  return {
     ...policy,
     id,
     config,
   };
-
-  return instance.isPreemptive
-    ? instance
-    : {
-        ...instance,
-        returnControlOnBlock:
-          returnControlOnBlock ?? instance.returnControlOnBlock,
-      };
 }

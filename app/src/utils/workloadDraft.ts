@@ -14,21 +14,26 @@ export interface ProgramDraft {
   ioLength: string;
 }
 
+/** Editable form state for one policy instance; settings stay as text until validated. */
+export interface PolicyDraft {
+  key: string;
+  policyName: string;
+  config: Record<string, string>;
+}
+
 export interface WorkloadDraft {
   programs: ProgramDraft[];
-  policyName: string;
-  policyConfig: Record<string, string>;
-  returnControlOnBlock: boolean;
+  policies: PolicyDraft[];
 }
 
 // A counter rather than crypto.randomUUID(), which only exists on HTTPS and localhost.
-let nextProgramKey = 0;
+let nextKey = 0;
 
 export function createProgramDraft(
   values: Partial<Omit<ProgramDraft, "key">> = {},
 ): ProgramDraft {
   return {
-    key: String(nextProgramKey++),
+    key: String(nextKey++),
     executionTime: "5",
     arrivalTime: "0",
     ioEnabled: false,
@@ -52,18 +57,26 @@ export function defaultPolicyConfig(policy: Policy): Record<string, string> {
   );
 }
 
+export function createPolicyDraft(policy: Policy): PolicyDraft {
+  return {
+    key: String(nextKey++),
+    policyName: policy.name,
+    config: defaultPolicyConfig(policy),
+  };
+}
+
 // Prefilled example shown on a fresh visit (FR-019).
 export function createDefaultWorkload(): WorkloadDraft {
-  const policy = POLICIES[0];
   return {
     programs: [
       createProgramDraft({ executionTime: "3" }),
       createProgramDraft({ executionTime: "4", ioEnabled: true }),
       createProgramDraft({ executionTime: "2" }),
     ],
-    policyName: policy.name,
-    policyConfig: defaultPolicyConfig(policy),
-    returnControlOnBlock: true,
+    policies: [
+      createPolicyDraft(findPolicy("FIFO")),
+      createPolicyDraft(findPolicy("Round Robin")),
+    ],
   };
 }
 
@@ -76,7 +89,9 @@ export function toWorkloadInput(draft: WorkloadDraft): WorkloadInput {
         ? { interval: program.ioInterval, length: program.ioLength }
         : undefined,
     })),
-    configFields: findPolicy(draft.policyName).getConfigFields(),
-    policyConfig: draft.policyConfig,
+    policies: draft.policies.map((policy) => ({
+      configFields: findPolicy(policy.policyName).getConfigFields(),
+      config: policy.config,
+    })),
   };
 }
