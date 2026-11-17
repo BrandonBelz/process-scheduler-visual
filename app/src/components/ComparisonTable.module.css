@@ -1,0 +1,43 @@
+.scroller {
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: 6px 16px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+  }
+
+  th:first-child {
+    text-align: left;
+  }
+
+  thead th {
+    max-width: 16ch;
+    vertical-align: bottom;
+  }
+
+  thead th,
+  tbody th,
+  tfoot th,
+  tfoot td {
+    font-weight: 600;
+    color: var(--text-h);
+  }
+
+  tfoot th,
+  tfoot td {
+    border-top: 2px solid var(--border);
+    border-bottom: none;
+  }
+}
+
+.process {
+  font-family: var(--mono);
+}

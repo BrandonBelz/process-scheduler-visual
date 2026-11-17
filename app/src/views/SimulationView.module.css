@@ -2,6 +2,45 @@
   margin: 32px 0 24px;
 
   h1 {
-    margin: 0 0 12px;
+    margin: 0 0 4px;
   }
+}
+
+.summary {
+  margin: 0 0 16px;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.tab[aria-pressed="true"] {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.hint {
+  max-width: 70ch;
+  margin: 0 0 16px;
+  font-size: 15px;
+}
+
+.detailHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 24px 0 16px;
+
+  /* Two classes outrank the app-wide h2 margin. */
+  .detailTitle {
+    margin: 0;
+  }
+}
+
+.results h3 {
+  margin: 24px 0 8px;
+  font-size: 18px;
 }

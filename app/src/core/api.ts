@@ -380,13 +380,35 @@ export function getPolicy(name: string): Policy | undefined {
 export function describePolicy(
   policy: Policy,
   config: Record<string, number>,
+  name = policy.name,
 ): string {
   const settings = policy
     .getConfigFields()
     .map(({ key, label }) => `${label}: ${config[key]}`);
-  return settings.length > 0
-    ? `${policy.name} (${settings.join(", ")})`
-    : policy.name;
+  // Only the non-default choice is named, so most labels stay short.
+  if (!policy.isPreemptive && !policy.returnControlOnBlock) {
+    settings.push("Keeps CPU when blocked");
+  }
+  return settings.length > 0 ? `${name} (${settings.join(", ")})` : name;
+}
+
+// Numbers policy names that appear more than once, in list order, e.g. "Round Robin #2".
+export function numberPolicyNames(names: string[]): string[] {
+  return names.map((name, index) => {
+    if (names.filter((other) => other === name).length === 1) return name;
+    const number = names
+      .slice(0, index + 1)
+      .filter((other) => other === name).length;
+    return `${name} #${number}`;
+  });
+}
+
+// Labels instances by number and settings (FR-026), e.g. "Round Robin #2 (Time slice: 5)".
+export function labelPolicyInstances(instances: PolicyInstance[]): string[] {
+  const names = numberPolicyNames(instances.map(({ name }) => name));
+  return instances.map((instance, index) =>
+    describePolicy(instance, instance.config, names[index]),
+  );
 }
 
 export function makePolicyInstance<TState, TConfig>(

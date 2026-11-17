@@ -1,27 +1,3 @@
-.timeline {
-  --state-running-bg: #16a34a;
-  --state-running-fg: #fff;
-  --state-ready-bg: #fef3c7;
-  --state-ready-fg: #92400e;
-  --state-blocked-bg: #fee2e2;
-  --state-blocked-fg: #991b1b;
-  --state-completed-bg: #e5e7eb;
-  --state-completed-fg: #4b5563;
-}
-
-@media (prefers-color-scheme: dark) {
-  .timeline {
-    --state-running-bg: #22c55e;
-    --state-running-fg: #052e16;
-    --state-ready-bg: #fccc4d;
-    --state-ready-fg: #3c2e07;
-    --state-blocked-bg: #fc4b4b;
-    --state-blocked-fg: #261313;
-    --state-completed-bg: #2e303a;
-    --state-completed-fg: #9ca3af;
-  }
-}
-
 .scroller {
   overflow-x: auto;
   padding-bottom: 8px;
@@ -41,14 +17,36 @@
   transform: translateX(calc(-50% - 1px));
 }
 
-.processLabel {
+/* Keeps process labels beside their rows while the grid scrolls sideways. */
+.stickyColumn {
   grid-column: 1;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  align-self: stretch;
+  background: var(--bg);
+}
+
+/* Half of the first moment's label sits over the sticky column. */
+.firstMoment {
+  position: relative;
+  z-index: 2;
+}
+
+.processLabel {
   display: flex;
   align-items: center;
+  gap: 6px;
   padding-right: 12px;
   font-family: var(--mono);
   font-weight: 600;
   color: var(--text-h);
+}
+
+.marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
 .cell {

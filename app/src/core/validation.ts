@@ -8,6 +8,8 @@ export interface NumberRange {
 
 export const PROGRAM_COUNT_LIMITS: NumberRange = { min: 1, max: 10 };
 
+export const POLICY_COUNT_LIMITS: NumberRange = { min: 1, max: 5 };
+
 export const PROGRAM_FIELD_LIMITS = {
   executionTime: { min: 1, max: 20 },
   arrivalTime: { min: 0, max: 20 },
@@ -26,25 +28,36 @@ export type ProgramField = keyof typeof PROGRAM_FIELD_LIMITS;
 
 export type ProgramErrors = Partial<Record<ProgramField, string>>;
 
+/** Raw user input for one policy instance's settings. */
+export interface PolicyInput {
+  /** The policy's fields, which `config` is checked against. */
+  configFields: ConfigField[];
+  config: Record<string, string>;
+}
+
 export interface WorkloadInput {
   programs: ProgramInput[];
-  /** The selected policy's fields, which `policyConfig` is checked against. */
-  configFields: ConfigField[];
-  policyConfig: Record<string, string>;
+  policies: PolicyInput[];
 }
+
+/** Messages keyed by config field. */
+export type PolicyErrors = Record<string, string>;
 
 export interface WorkloadErrors {
   programCount?: string;
   /** Index-aligned with the input programs. */
   programs: ProgramErrors[];
-  policyConfig: Record<string, string>;
+  policyCount?: string;
+  /** Index-aligned with the input policies. */
+  policies: PolicyErrors[];
 }
 
 export type WorkloadValidation =
   | {
       valid: true;
       programs: Program[];
-      policyConfig: Record<string, number>;
+      /** Index-aligned with the input policies. */
+      policyConfigs: Record<string, number>[];
     }
   | { valid: false; errors: WorkloadErrors };
 
@@ -76,14 +89,24 @@ export function parseWholeNumber(
   return { value };
 }
 
+function isCountWithin(count: number, { min, max }: NumberRange): boolean {
+  return count >= min && count <= max;
+}
+
 // Validates raw workload input and, when valid, converts it to programs numbered by position.
 export function validateWorkload(input: WorkloadInput): WorkloadValidation {
-  const errors: WorkloadErrors = { programs: [], policyConfig: {} };
+  const errors: WorkloadErrors = { programs: [], policies: [] };
   let hasErrors = false;
 
-  const { min, max } = PROGRAM_COUNT_LIMITS;
-  if (input.programs.length < min || input.programs.length > max) {
+  if (!isCountWithin(input.programs.length, PROGRAM_COUNT_LIMITS)) {
+    const { min, max } = PROGRAM_COUNT_LIMITS;
     errors.programCount = `Add between ${min} and ${max} processes.`;
+    hasErrors = true;
+  }
+
+  if (!isCountWithin(input.policies.length, POLICY_COUNT_LIMITS)) {
+    const { min, max } = POLICY_COUNT_LIMITS;
+    errors.policyCount = `Add between ${min} and ${max} policies.`;
     hasErrors = true;
   }
 
@@ -123,18 +146,26 @@ export function validateWorkload(input: WorkloadInput): WorkloadValidation {
     return program;
   });
 
-  const policyConfig: Record<string, number> = {};
-  input.configFields.forEach((field) => {
-    const parsed = parseWholeNumber(input.policyConfig[field.key] ?? "", field);
-    if (parsed.error !== undefined) {
-      errors.policyConfig[field.key] = parsed.error;
-      hasErrors = true;
-    } else {
-      policyConfig[field.key] = parsed.value!;
-    }
+  const policyConfigs = input.policies.map((policyInput) => {
+    const policyErrors: PolicyErrors = {};
+    const config: Record<string, number> = {};
+    policyInput.configFields.forEach((field) => {
+      const parsed = parseWholeNumber(
+        policyInput.config[field.key] ?? "",
+        field,
+      );
+      if (parsed.error !== undefined) {
+        policyErrors[field.key] = parsed.error;
+        hasErrors = true;
+      } else {
+        config[field.key] = parsed.value!;
+      }
+    });
+    errors.policies.push(policyErrors);
+    return config;
   });
 
   return hasErrors
     ? { valid: false, errors }
-    : { valid: true, programs, policyConfig };
+    : { valid: true, programs, policyConfigs };
 }

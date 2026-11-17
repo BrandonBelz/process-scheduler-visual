@@ -1,5 +1,6 @@
 import type Process from "../core/types/process";
 import { ProcessState } from "../core/types/processState";
+import { processMarkerStyle } from "../utils/processColors";
 import styles from "./ProcessTimeline.module.css";
 
 interface StateDisplay {
@@ -41,7 +42,7 @@ interface ProcessTimelineProps {
   processes: Process[];
 }
 
-// Renders a timeline of processes and their states over time.
+// Renders every process's state over time for one policy run.
 export default function ProcessTimeline({ processes }: ProcessTimelineProps) {
   const totalCycles = Math.max(
     0,
@@ -54,7 +55,7 @@ export default function ProcessTimeline({ processes }: ProcessTimelineProps) {
   );
 
   return (
-    <section className={styles.timeline}>
+    <section>
       <div className={styles.scroller}>
         <div
           className={styles.grid}
@@ -63,9 +64,12 @@ export default function ProcessTimeline({ processes }: ProcessTimelineProps) {
             gridTemplateColumns: `max-content repeat(${totalCycles}, 2rem) 0`,
           }}
         >
-          <span />
+          <span className={styles.stickyColumn} />
           {moments.map((moment) => (
-            <span key={moment} className={styles.momentLabel}>
+            <span
+              key={moment}
+              className={`${styles.momentLabel} ${moment === 0 ? styles.firstMoment : ""}`}
+            >
               {moment}
             </span>
           ))}
@@ -84,7 +88,15 @@ function TimelineRow({ process }: { process: Process }) {
 
   return (
     <>
-      <span className={styles.processLabel}>{label}</span>
+      <span className={`${styles.processLabel} ${styles.stickyColumn}`}>
+        {/* Matches the process's color in the multi-policy view. */}
+        <span
+          className={styles.marker}
+          style={processMarkerStyle(process.program.id)}
+          aria-hidden="true"
+        />
+        {label}
+      </span>
       {process.stateHistory.map((state, cycle) => (
         <StateCell
           key={cycle}

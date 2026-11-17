@@ -1,6 +1,40 @@
 .app {
   --error: #b91c1c;
 
+  /* Process state colors, shared by every timeline. */
+  --state-running-bg: #16a34a;
+  --state-running-fg: #fff;
+  --state-ready-bg: #fef3c7;
+  --state-ready-fg: #92400e;
+  --state-blocked-bg: #fee2e2;
+  --state-blocked-fg: #991b1b;
+  --state-completed-bg: #e5e7eb;
+  --state-completed-fg: #4b5563;
+
+  /*
+   * One color per process, in a fixed, validated order (P0 first). Each label
+   * color is whichever of white or near-black contrasts more with its fill.
+   * Processes past the eighth share a neutral fill; their label identifies them.
+   */
+  --process-0-bg: #2a78d6;
+  --process-0-fg: #fff;
+  --process-1-bg: #eb6834;
+  --process-1-fg: #0b0b0b;
+  --process-2-bg: #1baf7a;
+  --process-2-fg: #0b0b0b;
+  --process-3-bg: #eda100;
+  --process-3-fg: #0b0b0b;
+  --process-4-bg: #e87ba4;
+  --process-4-fg: #0b0b0b;
+  --process-5-bg: #008300;
+  --process-5-fg: #fff;
+  --process-6-bg: #6250d6;
+  --process-6-fg: #fff;
+  --process-7-bg: #e34948;
+  --process-7-fg: #0b0b0b;
+  --process-other-bg: #52514e;
+  --process-other-fg: #fff;
+
   padding: 0 32px 32px;
   text-align: left;
 
@@ -62,5 +96,32 @@
 @media (prefers-color-scheme: dark) {
   .app {
     --error: #f87171;
+    --state-running-bg: #22c55e;
+    --state-running-fg: #052e16;
+    --state-ready-bg: #fccc4d;
+    --state-ready-fg: #3c2e07;
+    --state-blocked-bg: #fc4b4b;
+    --state-blocked-fg: #261313;
+    --state-completed-bg: #2e303a;
+    --state-completed-fg: #9ca3af;
+
+    --process-0-bg: #3987e5;
+    --process-1-bg: #d95926;
+    --process-2-bg: #199e70;
+    --process-3-bg: #c98500;
+    --process-4-bg: #d55181;
+    --process-5-bg: #0ca30c;
+    --process-6-bg: #9085e9;
+    --process-7-bg: #e66767;
+    --process-other-bg: #c3c2b7;
+    --process-0-fg: #0b0b0b;
+    --process-1-fg: #0b0b0b;
+    --process-2-fg: #0b0b0b;
+    --process-3-fg: #0b0b0b;
+    --process-4-fg: #0b0b0b;
+    --process-5-fg: #0b0b0b;
+    --process-6-fg: #0b0b0b;
+    --process-7-fg: #0b0b0b;
+    --process-other-fg: #0b0b0b;
   }
 }

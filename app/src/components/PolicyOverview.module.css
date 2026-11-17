@@ -1,0 +1,166 @@
+.scroller {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  row-gap: 6px;
+  width: max-content;
+}
+
+/* Centers each label on the line at the left edge of its column. */
+.momentLabel {
+  justify-self: start;
+  padding-bottom: 2px;
+  font-family: var(--mono);
+  font-size: 12px;
+  transform: translateX(-50%);
+}
+
+.momentLine {
+  z-index: 0;
+  margin-top: -6px;
+  border-left: 1px solid var(--border);
+}
+
+/* Keeps policy labels beside their rows while the grid scrolls sideways. */
+.stickyColumn {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  align-self: stretch;
+  background: var(--bg);
+}
+
+/* Half of the first moment's label sits over the sticky column. */
+.firstMoment {
+  position: relative;
+  z-index: 3;
+}
+
+.policyLabel {
+  display: flex;
+  align-items: center;
+  padding-right: 12px;
+}
+
+/* Styled as a link: it opens the policy's detail view. */
+.policyButton {
+  max-width: 16rem;
+  padding: 4px 0;
+  font-weight: 600;
+  color: var(--text-h);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+
+  &:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+/* Inset from the moment lines so they stay visible between cells. */
+.cell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: calc(2.5rem - 6px);
+  height: calc(2.5rem - 6px);
+  margin: 0 3px;
+  align-self: center;
+  box-sizing: border-box;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Running cells are filled with their process's color inline. */
+.running {
+  font-size: 14px;
+}
+
+/* Stripes mark a cell where nothing ran, without spending a process color. */
+.blocked {
+  color: var(--text-h);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--border) 0 2px,
+    transparent 2px 6px
+  );
+  border: 1px solid var(--border);
+}
+
+.blockedList {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.blockedEntry {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 2px;
+  background: var(--bg);
+  border-radius: 2px;
+}
+
+.marker {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.idle {
+  background: var(--bg);
+  border: 1px dashed var(--border);
+}
+
+.completed {
+  background: var(--state-completed-bg);
+  color: var(--state-completed-fg);
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  font-size: 14px;
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  ul:first-child {
+    gap: 6px;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  ul:first-child li:last-child {
+    margin-left: 6px;
+  }
+
+  .cell {
+    margin: 0;
+  }
+}

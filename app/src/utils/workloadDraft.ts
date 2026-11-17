@@ -14,21 +14,28 @@ export interface ProgramDraft {
   ioLength: string;
 }
 
-export interface WorkloadDraft {
-  programs: ProgramDraft[];
+/** Editable form state for one policy instance; settings stay as text until validated. */
+export interface PolicyDraft {
+  key: string;
   policyName: string;
-  policyConfig: Record<string, string>;
+  config: Record<string, string>;
+  /** Only used by non-preemptive policies; preemptive ones always return control. */
   returnControlOnBlock: boolean;
 }
 
+export interface WorkloadDraft {
+  programs: ProgramDraft[];
+  policies: PolicyDraft[];
+}
+
 // A counter rather than crypto.randomUUID(), which only exists on HTTPS and localhost.
-let nextProgramKey = 0;
+let nextKey = 0;
 
 export function createProgramDraft(
   values: Partial<Omit<ProgramDraft, "key">> = {},
 ): ProgramDraft {
   return {
-    key: String(nextProgramKey++),
+    key: String(nextKey++),
     executionTime: "5",
     arrivalTime: "0",
     ioEnabled: false,
@@ -52,18 +59,33 @@ export function defaultPolicyConfig(policy: Policy): Record<string, string> {
   );
 }
 
+// The editable settings a newly chosen policy starts with.
+export function defaultPolicySettings(
+  policy: Policy,
+): Omit<PolicyDraft, "key"> {
+  return {
+    policyName: policy.name,
+    config: defaultPolicyConfig(policy),
+    returnControlOnBlock: policy.isPreemptive || policy.returnControlOnBlock,
+  };
+}
+
+export function createPolicyDraft(policy: Policy): PolicyDraft {
+  return { key: String(nextKey++), ...defaultPolicySettings(policy) };
+}
+
 // Prefilled example shown on a fresh visit (FR-019).
 export function createDefaultWorkload(): WorkloadDraft {
-  const policy = POLICIES[0];
   return {
     programs: [
       createProgramDraft({ executionTime: "3" }),
       createProgramDraft({ executionTime: "4", ioEnabled: true }),
       createProgramDraft({ executionTime: "2" }),
     ],
-    policyName: policy.name,
-    policyConfig: defaultPolicyConfig(policy),
-    returnControlOnBlock: true,
+    policies: [
+      createPolicyDraft(findPolicy("FIFO")),
+      createPolicyDraft(findPolicy("Round Robin")),
+    ],
   };
 }
 
@@ -76,7 +98,9 @@ export function toWorkloadInput(draft: WorkloadDraft): WorkloadInput {
         ? { interval: program.ioInterval, length: program.ioLength }
         : undefined,
     })),
-    configFields: findPolicy(draft.policyName).getConfigFields(),
-    policyConfig: draft.policyConfig,
+    policies: draft.policies.map((policy) => ({
+      configFields: findPolicy(policy.policyName).getConfigFields(),
+      config: policy.config,
+    })),
   };
 }

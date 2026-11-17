@@ -4,6 +4,9 @@ import {
   describePolicy,
   getPolicies,
   getPolicy,
+  labelPolicyInstances,
+  makePolicyInstance,
+  numberPolicyNames,
   runSimulations,
 } from "./api";
 import fifoPolicyFactory from "./schedulers/fifo";
@@ -1003,6 +1006,51 @@ describe("describePolicy", () => {
 
   it("should use the bare name for a policy without config fields", () => {
     expect(describePolicy(fifoPolicyFactory(), {})).toBe("FIFO");
+  });
+
+  it("should accept a different display name", () => {
+    expect(
+      describePolicy(roundRobinPolicyFactory(), { timeSlice: 5 }, "RR #2"),
+    ).toBe("RR #2 (Time slice: 5)");
+  });
+});
+
+describe("numberPolicyNames", () => {
+  it("should number only names that repeat, in list order", () => {
+    expect(
+      numberPolicyNames(["Round Robin", "FIFO", "Round Robin", "Round Robin"]),
+    ).toEqual(["Round Robin #1", "FIFO", "Round Robin #2", "Round Robin #3"]);
+  });
+
+  it("should handle an empty list", () => {
+    expect(numberPolicyNames([])).toEqual([]);
+  });
+});
+
+describe("labelPolicyInstances", () => {
+  it("should label duplicates by number and settings (FR-026)", () => {
+    const roundRobin = roundRobinPolicyFactory();
+    expect(
+      labelPolicyInstances([
+        makePolicyInstance(roundRobin, 0, { timeSlice: 2 }),
+        makePolicyInstance(fifoPolicyFactory(), 1),
+        makePolicyInstance(roundRobin, 2, { timeSlice: 5 }),
+      ]),
+    ).toEqual([
+      "Round Robin #1 (Time slice: 2)",
+      "FIFO",
+      "Round Robin #2 (Time slice: 5)",
+    ]);
+  });
+
+  it("should name a non-preemptive instance that keeps the CPU when blocked", () => {
+    const fifo = fifoPolicyFactory();
+    expect(
+      labelPolicyInstances([
+        makePolicyInstance(fifo, 0, {}, true),
+        makePolicyInstance(fifo, 1, {}, false),
+      ]),
+    ).toEqual(["FIFO #1", "FIFO #2 (Keeps CPU when blocked)"]);
   });
 });
 

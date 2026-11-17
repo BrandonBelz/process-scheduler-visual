@@ -10,7 +10,7 @@ state rather than a router.
 `calculateAllStatistics` produces the `Statistic[]` that `ResultsTable` renders
 in API order, joined by program ID. Calculation rules stay in core.
 
-## 2. Configuration view with one policy (this change)
+## 2. Configuration view with one policy (done)
 
 - **Policy:** choose one policy from `getPolicies()` and show its description.
   Edit only the fields it lists through `getConfigFields()`; an empty list means
@@ -32,14 +32,43 @@ in API order, joined by program ID. Calculation rules stay in core.
   on the configuration view (NFR-010). A fresh visit starts with a prefilled
   example (FR-019).
 
-## 3. Multiple policy instances and comparison
+## 3. Multiple policy instances and comparison (this change)
 
-Replace the single policy with a list of 1–5 instances (FR-020), each with its
-own settings and a unique ID. Label duplicates by number and settings, for
-example `Round Robin #2 (Time slice: 5)` (FR-026), and allow reordering and
-removal. Extend `validateWorkload` with an instance list and count limit. Stack
-one timeline per instance on a shared cycle axis, padding shorter runs as
-completed (FR-001, FR-017), and add the comparison view (FR-006).
+- **Instances:** the single policy becomes a list of 1–5 instances (FR-020),
+  each with its own policy and settings. Users can add, reorder, and remove
+  them; Add suggests a policy not yet in the list. Instance IDs follow list
+  position when the run starts, and React keys are separate stable IDs, as with
+  programs. The prefilled example runs FIFO and Round Robin. Each
+  non-preemptive instance has its own "Return control when a process blocks"
+  setting, which resets to the policy's default when the policy changes; when
+  off, its label adds "Keeps CPU when blocked".
+- **Labels:** `numberPolicyNames` in core numbers policies that appear more than
+  once, in list order, and `labelPolicyInstances` adds their settings, for
+  example `Round Robin #2 (Time slice: 5)` (FR-026). The configuration view
+  shows the numbered names, since the settings are visible beside them.
+- **Validation:** `validateWorkload` takes a `policies` list and returns
+  `policyConfigs` and per-instance errors, index-aligned with the input, plus a
+  count message.
+- **Overview:** with more than one instance, `PolicyOverview` shows one row per
+  instance on a shared cycle axis, with a line at every moment through all rows.
+  Each cell shows the running process; when nothing runs, it lists the blocked
+  processes (two, then `+n`), or shows idle. `summarizeCpuCycles` in core
+  derives this from the histories and pads shorter runs as completed, for
+  display only (FR-001, FR-017). Per-process rows are not shown here. A results
+  table per instance follows, unchanged for now.
+- **Process colors:** running cells take a fixed per-process color (P0–P7, from
+  a palette checked for color-blind separation between neighbors; P8 and P9
+  share a neutral fill), and the label always names the process, so color is
+  never the only cue (NFR-006). Blocked cells are striped and neutral, with a
+  colored dot per process. The detail view shows the same color beside each
+  process label.
+- **Detail:** selecting an instance in the overview shows every process for
+  that instance in `ProcessTimeline`, with its results table. A run with one
+  instance opens in this view. Policy and process labels stay in view while
+  either grid scrolls sideways.
+- **Comparison:** a second tab shows `ComparisonTable`: mean statistics per
+  instance, then each statistic per process with a column per instance
+  (FR-006). Switching tabs keeps the run; Back discards it.
 
 ## 4. Shared playback
 
@@ -49,15 +78,22 @@ visually pad completed processes through the longest run without changing core
 histories or statistics. Reveal final results only at the final shared position.
 Switching between timeline and comparison views preserves playback position.
 
+## 5. Process editing modal
+
+Move process editing on the configuration view into a modal. Save keeps the
+edits and Cancel discards them, and the page shows the saved processes as a
+compact summary.
+
 ## Where things live
 
-| Path                          | Contents                                                                                          |
-| ----------------------------- | ------------------------------------------------------------------------------------------------- |
-| `core/validation.ts`          | Input limits and `validateWorkload`                                                               |
-| `workloadDraft.ts`            | Form state types, the prefilled example, config field labels                                      |
-| `views/ConfigurationView.tsx` | Policy and program editing, Run                                                                   |
-| `views/SimulationView.tsx`    | Timeline and results for a finished run                                                           |
-| `components/`                 | `PolicySettings`, `PolicyTags`, `ProgramEditor`, `NumberField`, `ProcessTimeline`, `ResultsTable` |
+| Path                          | Contents                                                                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/validation.ts`          | Input limits and `validateWorkload`                                                                                                    |
+| `workloadDraft.ts`            | Form state types, the prefilled example, config field labels                                                                           |
+| `views/ConfigurationView.tsx` | Policy and program editing, Run                                                                                                        |
+| `core/cpuTimeline.ts`         | `summarizeCpuCycles`, the per-cycle summary for the overview                                                                           |
+| `views/SimulationView.tsx`    | Overview, detail, and comparison for a finished run                                                                                    |
+| `components/`                 | `PolicySettings`, `PolicyTags`, `ProgramEditor`, `NumberField`, `PolicyOverview`, `ProcessTimeline`, `ResultsTable`, `ComparisonTable` |
 
 ## Testing
 
@@ -73,6 +109,11 @@ and check the views by hand in Chrome and Firefox.
 - Section 9 of the requirements still lists import/export as excluded, which
   contradicts FR-028.
 - `architecture.mmd` still names `getAvailablePolicies()` and FCFS/SPN.
+- FR-001 and section 6 of the requirements describe stacked per-process views
+  for every policy; the multi-policy view now shows only the CPU's process per
+  cycle, with per-process detail one policy at a time.
+- Results are still shown for every instance on the overview; their layout is
+  expected to change.
 
 Acceptance details remain in [requirements.md](requirements.md), especially
 FR-005–FR-006, FR-011, FR-016–FR-022, FR-024, FR-026–FR-027, and section 6.

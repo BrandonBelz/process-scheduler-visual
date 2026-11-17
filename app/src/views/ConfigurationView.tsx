@@ -1,11 +1,18 @@
 import PolicySettings from "../components/PolicySettings";
 import ProgramEditor from "../components/ProgramEditor";
-import { PROGRAM_COUNT_LIMITS, type WorkloadErrors } from "../core/validation";
+import { numberPolicyNames } from "../core/api";
+import {
+  POLICY_COUNT_LIMITS,
+  PROGRAM_COUNT_LIMITS,
+  type WorkloadErrors,
+} from "../core/validation";
 import {
   POLICIES,
+  createPolicyDraft,
   createProgramDraft,
-  defaultPolicyConfig,
+  defaultPolicySettings,
   findPolicy,
+  type PolicyDraft,
   type ProgramDraft,
   type WorkloadDraft,
 } from "../utils/workloadDraft";
@@ -20,6 +27,25 @@ interface ConfigurationViewProps {
   onRun: () => void;
 }
 
+// Returns a copy of the list with one item moved by the offset.
+function moveItem<T>(items: T[], index: number, offset: -1 | 1): T[] {
+  const nextItems = [...items];
+  const [moved] = nextItems.splice(index, 1);
+  nextItems.splice(index + offset, 0, moved);
+  return nextItems;
+}
+
+// Returns a copy of the list with the keyed item's changes applied.
+function updateItem<T extends { key: string }>(
+  items: T[],
+  key: string,
+  changes: Partial<T>,
+): T[] {
+  return items.map((item) =>
+    item.key === key ? { ...item, ...changes } : item,
+  );
+}
+
 export default function ConfigurationView({
   workload,
   errors,
@@ -27,28 +53,27 @@ export default function ConfigurationView({
   onChange,
   onRun,
 }: ConfigurationViewProps) {
-  const { programs } = workload;
-  const policy = findPolicy(workload.policyName);
+  const { programs, policies } = workload;
   const canAddProgram = programs.length < PROGRAM_COUNT_LIMITS.max;
+  const canAddPolicy = policies.length < POLICY_COUNT_LIMITS.max;
+  const policyLabels = numberPolicyNames(
+    policies.map(({ policyName }) => policyName),
+  );
 
   function setPrograms(nextPrograms: ProgramDraft[]) {
     onChange({ ...workload, programs: nextPrograms });
   }
 
-  function moveProgram(index: number, offset: -1 | 1) {
-    const nextPrograms = [...programs];
-    const [moved] = nextPrograms.splice(index, 1);
-    nextPrograms.splice(index + offset, 0, moved);
-    setPrograms(nextPrograms);
+  function setPolicies(nextPolicies: PolicyDraft[]) {
+    onChange({ ...workload, policies: nextPolicies });
   }
 
-  function selectPolicy(policyName: string) {
-    const nextPolicy = findPolicy(policyName);
-    onChange({
-      ...workload,
-      policyName: nextPolicy.name,
-      policyConfig: defaultPolicyConfig(nextPolicy),
-    });
+  // Suggests a policy not yet in the list so each addition is a new comparison.
+  function addPolicy() {
+    const unused = POLICIES.find(
+      ({ name }) => !policies.some(({ policyName }) => policyName === name),
+    );
+    setPolicies([...policies, createPolicyDraft(unused ?? POLICIES[0])]);
   }
 
   return (
@@ -62,29 +87,71 @@ export default function ConfigurationView({
       <h1>Configure workload</h1>
 
       <section>
-        <h2>Policy</h2>
-        <PolicySettings
-          policies={POLICIES}
-          policy={policy}
-          config={workload.policyConfig}
-          errors={errors?.policyConfig ?? {}}
-          returnControlOnBlock={workload.returnControlOnBlock}
-          onSelect={selectPolicy}
-          onConfigChange={(field, value) =>
-            onChange({
-              ...workload,
-              policyConfig: { ...workload.policyConfig, [field]: value },
-            })
-          }
-          onReturnControlOnBlockChange={(value) =>
-            onChange({ ...workload, returnControlOnBlock: value })
-          }
-        />
+        <h2>Policies</h2>
+        <ol className={styles.list}>
+          {policies.map((draft, index) => {
+            const policy = findPolicy(draft.policyName);
+            return (
+              <li key={draft.key}>
+                <PolicySettings
+                  label={policyLabels[index]}
+                  policies={POLICIES}
+                  policy={policy}
+                  config={draft.config}
+                  errors={errors?.policies[index] ?? {}}
+                  canMoveUp={index > 0}
+                  canMoveDown={index < policies.length - 1}
+                  returnControlOnBlock={draft.returnControlOnBlock}
+                  onSelect={(policyName) =>
+                    setPolicies(
+                      updateItem(
+                        policies,
+                        draft.key,
+                        defaultPolicySettings(findPolicy(policyName)),
+                      ),
+                    )
+                  }
+                  onConfigChange={(field, value) =>
+                    setPolicies(
+                      updateItem(policies, draft.key, {
+                        config: { ...draft.config, [field]: value },
+                      }),
+                    )
+                  }
+                  onReturnControlOnBlockChange={(returnControlOnBlock) =>
+                    setPolicies(
+                      updateItem(policies, draft.key, { returnControlOnBlock }),
+                    )
+                  }
+                  onMove={(offset) =>
+                    setPolicies(moveItem(policies, index, offset))
+                  }
+                  onRemove={() =>
+                    setPolicies(
+                      policies.filter((other) => other.key !== draft.key),
+                    )
+                  }
+                />
+              </li>
+            );
+          })}
+        </ol>
+        <div className={styles.addRow}>
+          <button type="button" onClick={addPolicy} disabled={!canAddPolicy}>
+            Add policy
+          </button>
+          <span className={styles.hint}>
+            {policies.length} of {POLICY_COUNT_LIMITS.max} policies
+          </span>
+        </div>
+        {errors?.policyCount && (
+          <p className={styles.error}>{errors.policyCount}</p>
+        )}
       </section>
 
       <section>
         <h2>Processes</h2>
-        <ol className={styles.programs}>
+        <ol className={styles.list}>
           {programs.map((program, index) => (
             <li key={program.key}>
               <ProgramEditor
@@ -94,15 +161,11 @@ export default function ConfigurationView({
                 canMoveUp={index > 0}
                 canMoveDown={index < programs.length - 1}
                 onChange={(changes) =>
-                  setPrograms(
-                    programs.map((other) =>
-                      other.key === program.key
-                        ? { ...other, ...changes }
-                        : other,
-                    ),
-                  )
+                  setPrograms(updateItem(programs, program.key, changes))
                 }
-                onMove={(offset) => moveProgram(index, offset)}
+                onMove={(offset) =>
+                  setPrograms(moveItem(programs, index, offset))
+                }
                 onRemove={() =>
                   setPrograms(
                     programs.filter((other) => other.key !== program.key),
