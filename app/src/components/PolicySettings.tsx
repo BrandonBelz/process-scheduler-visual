@@ -57,10 +57,11 @@ export default function PolicySettings({
             ))}
           </select>
         </div>
-        {policy.getConfigFields().map(({ key, label, min, max }) => (
+        {policy.getConfigFields().map(({ key, label, description, min, max }) => (
           <NumberField
             key={key}
             label={label}
+            description={description}
             value={config[key] ?? ""}
             range={{ min, max }}
             error={errors[key]}
@@ -68,7 +69,10 @@ export default function PolicySettings({
           />
         ))}
         {!policy.isPreemptive && (
-          <label className={styles.toggle}>
+          <label
+            className={styles.toggle}
+            title="Return control to the scheduler when the running process blocks for I/O."
+          >
             <input
               type="checkbox"
               checked={returnControlOnBlock}
@@ -76,7 +80,7 @@ export default function PolicySettings({
                 onReturnControlOnBlockChange(event.target.checked)
               }
             />
-            Return control when a process blocks
+            Return on block
           </label>
         )}
         <div className={styles.actions}>

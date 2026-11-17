@@ -98,7 +98,14 @@ export default function roundRobinPolicyFactory(
     canTellTheFuture: false,
     config: config,
     getConfigFields: () => [
-      { key: "timeSlice", label: "Time slice", min: 1, max: 20 },
+      {
+        key: "timeSlice",
+        label: "Slice",
+        description:
+          "Number of CPU cycles a process may run before Round Robin considers the next ready process.",
+        min: 1,
+        max: 20,
+      },
     ],
     initialState: initialRoundRobinState,
     snapshotState: snapshotRoundRobinState,

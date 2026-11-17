@@ -1000,7 +1000,7 @@ describe("getPolicy", () => {
 describe("describePolicy", () => {
   it("should list each config field with its label", () => {
     expect(describePolicy(roundRobinPolicyFactory(), { timeSlice: 3 })).toBe(
-      "Round Robin (Time slice: 3)",
+      "Round Robin (Slice: 3)",
     );
   });
 
@@ -1011,7 +1011,7 @@ describe("describePolicy", () => {
   it("should accept a different display name", () => {
     expect(
       describePolicy(roundRobinPolicyFactory(), { timeSlice: 5 }, "RR #2"),
-    ).toBe("RR #2 (Time slice: 5)");
+    ).toBe("RR #2 (Slice: 5)");
   });
 });
 
@@ -1037,9 +1037,9 @@ describe("labelPolicyInstances", () => {
         makePolicyInstance(roundRobin, 2, { timeSlice: 5 }),
       ]),
     ).toEqual([
-      "Round Robin #1 (Time slice: 2)",
+      "Round Robin #1 (Slice: 2)",
       "FIFO",
-      "Round Robin #2 (Time slice: 5)",
+      "Round Robin #2 (Slice: 5)",
     ]);
   });
 

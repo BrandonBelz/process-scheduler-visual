@@ -4,6 +4,7 @@ import styles from "./NumberField.module.css";
 
 interface NumberFieldProps {
   label: string;
+  description?: string;
   value: string;
   range?: NumberRange;
   error?: string;
@@ -13,6 +14,7 @@ interface NumberFieldProps {
 // A text input for whole numbers that shows its allowed range and any validation error.
 export default function NumberField({
   label,
+  description,
   value,
   range,
   error,
@@ -23,7 +25,7 @@ export default function NumberField({
 
   return (
     <div className={styles.field}>
-      <label htmlFor={id}>
+      <label htmlFor={id} title={description}>
         {label}
         {range && (
           <span className={styles.range}>

@@ -18,6 +18,8 @@ export interface ConfigField {
   key: string;
   /** Display name shown in the UI. */
   label: string;
+  /** Additional detail shown when the field label is hovered. */
+  description: string;
   min: number;
   max: number;
 }
